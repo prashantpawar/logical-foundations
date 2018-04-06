@@ -583,7 +583,6 @@ Proof.
   - unfold filter. rewrite H. reflexivity.
   - unfold filter. rewrite H.
     destruct (test x0) eqn:H0.
-    + unfold filter in IHl. rewrite H in IHl.
 Abort.
 
 
@@ -601,9 +600,9 @@ Proof.
       { - rewrite <- H.
           + reflexivity.
 Abort.
-
 *)
-(* Exercise: 3 stars, advanced (filter_exercise) 
+
+(* Exercise: 3 stars, advanced (filter_exercise) *)
 Theorem filter_exercise : forall (X : Type) (test : X -> bool)
                             (x : X) (l lf : list X),
   filter test l = x :: lf ->

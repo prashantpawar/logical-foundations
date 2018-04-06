@@ -1,6 +1,5 @@
 (** * Lists: Working with Structured Data *)
 
-Add LoadPath "/Users/developer/development/software-foundations/logical-foundations".
 Require Export Induction.
 Module NatList.
 

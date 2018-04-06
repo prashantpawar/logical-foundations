@@ -34,7 +34,7 @@ Tactic Notation "SSSSSSCase" constr(name) := Case_aux SSSSSSCase name.
 Tactic Notation "SSSSSSSCase" constr(name) := Case_aux SSSSSSSCase name.
 
 Add LoadPath "/Users/developer/development/software-foundations/logical-foundations".
-Require Export Induction_psp.
+Require Export Induction.
 
 (*
 Fixpoint beq_nat (n m : nat) : bool :=

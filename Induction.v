@@ -3,7 +3,6 @@
 (** Before getting started, we need to import all of our
     definitions from the previous chapter: *)
 
-Add LoadPath "/Users/developer/development/software-foundations/logical-foundations".
 Require Export Basics.
 
 (** For the [Require Export] to work, you first need to use

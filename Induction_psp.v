@@ -1,4 +1,3 @@
-Add LoadPath "/Users/developer/development/software-foundations/logical-foundations".
 Require Export Basics_psp.
 
 Theorem plus_n_O_firsttry : forall n:nat,
