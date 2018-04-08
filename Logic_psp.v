@@ -780,6 +780,83 @@ Proof.
   - intros [k Hk]. rewrite Hk. apply evenb_double.
 Qed.
 
+Theorem beq_nat_true_iff : forall n1 n2 : nat,
+  beq_nat n1 n2 = true <-> n1 = n2.
+Proof.
+  intros. split.
+  - intros H. apply beq_nat_true. apply H.  
+  - intros H. rewrite H. symmetry. apply beq_nat_refl.
+Qed.
+
+Fail Definition is_even_prime n :=
+  if n = 2 then true
+  else false.
+
+Example even_1000 : exists k, 1000 = double k.
+Proof.
+  exists 500. reflexivity. Qed.
+
+Example even_1000' : evenb 1000 = true.
+Proof. reflexivity. Qed.
+
+Example even_1000'' : exists k, 1000 = double k.
+Proof. apply even_bool_prop. reflexivity. Qed.
+
+(* Exercise: 2 stars (logical_connectives) *)
+Lemma andb_true_iff : forall b1 b2 : bool,
+  b1 && b2 = true <-> b1 = true /\ b2 = true.
+Proof.
+  split.
+  - intros H. split.
+    + destruct b1.
+      * reflexivity.
+      * destruct H. unfold andb. reflexivity.
+    + destruct b2.
+      * reflexivity.
+      * destruct H. unfold andb. destruct b1.
+        { - reflexivity. }
+        { - reflexivity. }
+  - intros [H1 H2]. rewrite H1. apply H2.
+Qed.
+
+
+Lemma orb_true_iff : forall b1 b2,
+  b1 || b2 = true <-> b1 = true \/ b2 = true.
+Proof.
+  split.
+  - intros H. rewrite <- H. unfold orb. destruct b1.
+    + left. reflexivity.
+    + right. reflexivity.
+  - intros [H1 | H2].
+    + rewrite H1. reflexivity.
+    + rewrite H2. destruct b1.
+      * reflexivity.
+      * reflexivity.
+Qed.
+
+Require Import NArith.
+
+(* Exercise: 1 star (beq_nat_false_iff) *)
+Theorem beq_nat_false_iff : forall x y : nat,
+  beq_nat x y = false <-> x <> y.
+Proof.
+  intros x y.
+  split.
+  - unfold not. intros H G. rewrite <- G in H.
+    rewrite <- beq_nat_refl in H. inversion H.
+  - unfold not. intros. destruct (beq_nat x y) eqn:G.
+    + exfalso. apply beq_nat_true in G. apply H. apply G.
+    + reflexivity.
+Qed.
+
+(* Exercise: 3 stars (beq_list) *)
+Fixpoint beq_list {A : Type} (beq : A -> A -> bool)
+                  (l1 l2 : list A) : bool :=
+  
+
+
+
+
 
 
 
