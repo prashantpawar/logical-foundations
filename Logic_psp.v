@@ -852,7 +852,86 @@ Qed.
 (* Exercise: 3 stars (beq_list) *)
 Fixpoint beq_list {A : Type} (beq : A -> A -> bool)
                   (l1 l2 : list A) : bool :=
-  
+  match l1, l2 with
+  | [], [] => true
+  | x :: l1', y :: l2' => beq x y && beq_list beq l1' l2'
+  | _, _ => false
+  end.
+
+Theorem beq_list_true_iff' :
+  forall (A : Type) (beq : A -> A -> bool), (
+    forall a1 a2, beq a1 a2 = true <-> a1 = a2) ->
+      forall l1 l2, beq_list beq l1 l2 = true <-> l1 = l2.
+Proof.
+  intros A beq h1.
+  induction l1 as [|a l1].
+  + induction l2 as [|b l2].
+    - split; reflexivity.
+    - split; intros h2; inversion h2.
+  + induction l2 as [|b l2].
+    - split; inversion 1.
+    - simpl; split.
+      * intros h2.
+        apply andb_true_iff in h2.
+        destruct h2 as [h2 h3].
+        apply h1 in h2.
+        apply IHl1 in h3.
+        rewrite h2; rewrite h3; reflexivity.
+      * intros h2.
+        apply andb_true_iff.
+        injection h2 as h2 h3.
+        rewrite h2; rewrite <- h3.
+        split; [apply h1 | apply IHl1]; reflexivity.
+Qed.
+
+Lemma list_body_eq : forall X (x:X) (l1 l2 : list X),
+  x :: l1 = x :: l2 ->
+  l1 = l2.
+Proof.
+  intros.
+  induction l1, l2.
+  - reflexivity.
+  - inversion H.
+  - inversion H.
+  - inversion H. rewrite <- H2. reflexivity.
+Qed.
+
+Lemma list_body_eq_inv : forall X (x:X) (l1 l2 : list X),
+  l1 = l2 ->
+  x :: l1 = x :: l2.
+Proof.
+  intros. rewrite H. reflexivity.
+Qed.
+
+Lemma beq_list_true_iff :
+  forall A (beq : A -> A -> bool),
+    (forall a1 a2, beq a1 a2 = true <-> a1 = a2) ->
+    forall l1 l2, beq_list beq l1 l2 = true <-> l1 = l2.
+Proof.
+  intros A beq H.
+  induction l1 as [| x l1'], l2 as [| y l2'].
+  - simpl. split.
+    + reflexivity.
+    + reflexivity.
+  - simpl. split.
+    + intros G. inversion G.
+    + intros G. inversion G.
+  - simpl. split.
+    + intros G. inversion G.
+    + intros G. inversion G.
+  - simpl. split.
+    + intros G. rewrite andb_true_iff in G.
+      destruct G. apply IHl1' in H1. apply H in H0. 
+      rewrite H0. rewrite H1. reflexivity.
+    + intros G. rewrite andb_true_iff. split.
+      * inversion G. apply H. reflexivity.
+      * inversion G. apply IHl1' in H2. 
+        inversion G. rewrite H4 in H2. apply H2.
+Qed.
+
+
+
+
 
 
 
