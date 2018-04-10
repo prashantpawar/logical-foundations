@@ -858,32 +858,6 @@ Fixpoint beq_list {A : Type} (beq : A -> A -> bool)
   | _, _ => false
   end.
 
-Theorem beq_list_true_iff' :
-  forall (A : Type) (beq : A -> A -> bool), (
-    forall a1 a2, beq a1 a2 = true <-> a1 = a2) ->
-      forall l1 l2, beq_list beq l1 l2 = true <-> l1 = l2.
-Proof.
-  intros A beq h1.
-  induction l1 as [|a l1].
-  + induction l2 as [|b l2].
-    - split; reflexivity.
-    - split; intros h2; inversion h2.
-  + induction l2 as [|b l2].
-    - split; inversion 1.
-    - simpl; split.
-      * intros h2.
-        apply andb_true_iff in h2.
-        destruct h2 as [h2 h3].
-        apply h1 in h2.
-        apply IHl1 in h3.
-        rewrite h2; rewrite h3; reflexivity.
-      * intros h2.
-        apply andb_true_iff.
-        injection h2 as h2 h3.
-        rewrite h2; rewrite <- h3.
-        split; [apply h1 | apply IHl1]; reflexivity.
-Qed.
-
 Lemma list_body_eq : forall X (x:X) (l1 l2 : list X),
   x :: l1 = x :: l2 ->
   l1 = l2.
