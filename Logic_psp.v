@@ -903,6 +903,71 @@ Proof.
         inversion G. rewrite H4 in H2. apply H2.
 Qed.
 
+(* Exercise: 2 stars, recommended (All_forallb) *)
+Fixpoint forallb {X : Type} (test : X -> bool) (l : list X) : bool :=
+  match l with
+  | [] => true
+  | x :: l' => andb (test x) (forallb test l')
+  end.
+
+Theorem forallb_true_iff : forall X test (l : list X),
+  forallb test l = true <-> All (fun x => test x = true) l.
+Proof.
+  intros. split.
+  - intros H. induction l.
+    + simpl. apply I.
+    + simpl. simpl in H. rewrite andb_true_iff in H. destruct H.  split.
+      * apply H.
+      * apply IHl. apply H0.
+  - intros H. induction l.
+    + reflexivity.
+    + simpl. rewrite andb_true_iff. simpl in H. destruct H. split.
+      * apply H.
+      * apply IHl. apply H0.
+Qed.
+
+(* Classical vs. Constructive Logic *)
+
+Definition excluded_middle := forall P : Prop,
+  P \/ ~P.
+
+
+Theorem restricted_excluded_middle : forall P b,
+  (P <-> b = true) -> P \/ ~P.
+Proof.
+  intros. destruct b.
+  - left. rewrite H. reflexivity.
+  - right. rewrite H. intros contra. inversion contra.
+Qed.
+
+
+Theorem restricted_excluded_middle_eq : forall (n m : nat),
+  n = m \/ n <> m.
+Proof.
+  intros n m.
+  apply (restricted_excluded_middle (n = m) (beq_nat n m)).
+  symmetry. apply beq_nat_true_iff.
+Qed.
+
+
+(* Exercise: 3 stars (excluded_middle_irrefutable) *)
+Theorem excluded_middle_irrefutable: forall (P:Prop),
+  ~ ~ (P \/ ~P).
+Proof.
+  intros. apply double_neg.
+Abort.
+
+
+(* Exercise:  3 stars, advanced (not_exists_dist) *)
+Theorem not_exists_dist :
+  excluded_middle ->
+  forall (X:Type) (P : X -> Prop),
+    ~ (exists x, ~ P x) -> (forall x, P x).
+Proof.
+  intros.
+
+
+
 
 
 

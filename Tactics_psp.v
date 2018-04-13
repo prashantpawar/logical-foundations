@@ -1,7 +1,7 @@
 Set Warnings "-notation-overridden,-parsing".
 
-Add LoadPath "/Users/developer/development/software-foundations/logical-foundations".
-Require Export Poly_psp.
+(* Add LoadPath "/Users/developer/development/software-foundations/logical-foundations". *)
+Require Export Poly.
 
 Theorem silly1 : forall (n m o p : nat),
   n = m ->
@@ -554,6 +554,82 @@ Proof.
     + apply H1.
 Qed.
 
+
+(* Exercise: 4 stars, advanced, recommended (forall_exists_challenge) *)
+Fixpoint forallb X (test : X -> bool) (l : list X) : bool :=
+  match l with
+  | [] => true
+  | x :: l' => test x && forallb X test l'
+  end.
+
+Arguments forallb {X}.
+
+Example test_forallb_1 : forallb oddb [1;3;5;7;9] = true.
+Proof. reflexivity. Qed.
+
+Example test_forallb_2 : forallb negb [false;false] = true.
+Proof. reflexivity. Qed.
+
+Example test_forallb_3 : forallb evenb [0;2;4;5] = false.
+Proof. reflexivity. Qed.
+
+Example test_forallb_4 : forallb (beq_nat 5) [] = true.
+Proof. reflexivity. Qed.
+
+
+Fixpoint existsb X (test : X -> bool) (l : list X) : bool :=
+  match l with
+  | [] => false
+  | x :: l' => test x || existsb X test l'
+  end.
+
+Arguments existsb {X}.
+
+Example test_existsb_1 : existsb (beq_nat 5) [0;2;3;6] = false.
+Proof. reflexivity. Qed.
+
+Example test_existsb_2 : existsb (andb true) [true;true;false] = true.
+Proof. reflexivity. Qed.
+
+Example test_existsb_3 : existsb oddb [1;0;0;0;0;3] = true.
+Proof. reflexivity. Qed.
+
+Example test_existsb_4 : existsb evenb [] = false.
+Proof. reflexivity. Qed.
+
+
+Definition existsb' X (test : X -> bool) (l : list X) : bool :=
+  negb (forallb (fun x => negb (test x)) l).
+
+Arguments existsb' {X}.
+
+Example test_existsb'_1 : existsb' (beq_nat 5) [0;2;3;6] = false.
+Proof. reflexivity. Qed.
+
+Example test_existsb'_2 : existsb' (andb true) [true;true;false] = true.
+Proof. reflexivity. Qed.
+
+Example test_existsb'_3 : existsb' oddb [1;0;0;0;0;3] = true.
+Proof. reflexivity. Qed.
+
+Example test_existsb'_4 : existsb' evenb [] = false.
+Proof. reflexivity. Qed.
+
+Theorem existsb_existsb': forall X (test : X -> bool) (l : list X),
+  existsb test l = existsb' test l.
+Proof.
+  intros.
+  induction l.
+  - unfold existsb'. reflexivity.
+  - simpl. unfold existsb'. symmetry. 
+    rewrite <- negb_involutive. apply f_equal. 
+    unfold existsb' in IHl. simpl. destruct (test x).
+    + reflexivity.
+    + simpl. rewrite IHl. rewrite negb_involutive. reflexivity.
+Qed.
+
+(* Exercise: 3 stars, advanced (filter_exercise) *)
+
 Lemma filter_single_el : forall (X : Type) (test : X -> bool)
                             (x : X) (l : list X),
   filter test (x :: []) = x :: [] ->
@@ -603,18 +679,32 @@ Abort.
 *)
 
 (* Exercise: 3 stars, advanced (filter_exercise) *)
-Theorem filter_exercise : forall (X : Type) (test : X -> bool)
-                            (x : X) (l lf : list X),
+Theorem filter_exercise : 
+  forall (X : Type) (test : X -> bool) (x : X) (l lf : list X),
   filter test l = x :: lf ->
   test x = true.
 Proof.
+  intros X test x l lf.
+  induction (filter test l).
+  - intros H. inversion H. 
+  - induction (x :: lf).
+    + intros H. inversion H.
+    + intros H. inversion H. apply IHl1.
+      * intros H3. apply IHl0.
+     
+    +  unfold filter. destruct (test x).
+    + reflexivity.
+    + 
+
+(* Semi successful
+
   intros.
   induction (filter test l).
   - inversion H.
   - inversion H. rewrite H2 in IHl0. 
     induction (test x).
     + auto.
-    + apply IHl0.
+    + apply IHl0. 
     + inversion H. rewrite H2. rewrite <- H. symmetry in H2.
     
     rewrite H2 in H. rewrite H2.
@@ -646,10 +736,7 @@ Proof.
 
 
 
-*)
-
-
-
+** End Gave Up *)
 
 
 
