@@ -1,6 +1,7 @@
 Set Warnings "-notation-overridden,-parsing".
 Require Export Tactics.
 Require Export Logic.
+Require Export Lists.
 Require Coq.omega.Omega.
 
 Inductive ev : nat -> Prop :=
@@ -266,16 +267,113 @@ Proof.
     + apply H1.
 Qed.
 
-Theorem le_plus_1 : forall a b,
+Theorem le_plus_l : forall a b,
   a <= a + b.
 Proof.
   intros.
   induction a.
-  - simpl. apply le_0_n.
+  - simpl. apply O_le_n.
   - simpl. apply n_le_m__Sn_le_Sm. apply IHa.
 Qed.
 
+Theorem le_plus_r : forall a b,
+  b <= a + b.
+Proof.
+  intros.
+  induction a.
+  - simpl. apply le_n.
+  - simpl. apply le_S. apply IHa.
+Qed.
 
+Theorem plus_lt : forall n1 n2 m,
+  n1 + n2 < m ->
+  n1 < m /\ n2 < m.
+Proof.
+  unfold lt.
+  intros n1 n2 m H.
+  split.
+  - apply le_trans with (S (n1 + n2)).
+    + apply n_le_m__Sn_le_Sm. apply le_plus_l.
+    + apply H.
+  - apply le_trans with (S (n1 + n2)).
+    + apply n_le_m__Sn_le_Sm. apply le_plus_r.
+    + apply H.
+Qed.
+
+Theorem lt_S : forall n m,
+  n < m ->
+  n < S m.
+Proof.
+  unfold lt.
+  intros.
+  apply le_Sn_le in H.
+  apply n_le_m__Sn_le_Sm. apply H.
+Qed.
+
+Theorem ble_n_Sn : forall n,
+  leb n (S n) = true.
+Proof.
+  intros n. induction n.
+  - reflexivity.
+  - simpl. rewrite -> IHn. reflexivity.
+Qed.
+
+
+Theorem ble_Sn_m : forall n m,
+  leb (S n) m = true ->
+  leb n m = true.
+Proof.
+  intros.
+  induction m.
+  - induction n.
+    + reflexivity.
+    + simpl in H. inversion H.
+  - simpl in H. rewrite H in IHm.
+Admitted.
+
+Theorem leb_complete : forall n m,
+  leb n m = true -> n <= m.
+Proof. 
+  intros.
+  generalize dependent m.
+  induction n.
+  - intros m H. apply O_le_n.
+  - intros m H. 
+
+
+
+  intros n m H.
+  generalize dependent n.
+  induction n.
+  - intros. apply O_le_n.
+  - intros. apply le_trans with (S m).
+    + apply n_le_m__Sn_le_Sm. apply IHn. apply ble_Sn_m. apply H.
+    + destruct IHn.
+      * apply ble_Sn_m. apply H.
+      * 
+  
+   induction m.
+    + intros. inversion H.
+    + intros. apply le_trans with (m).
+      * apply IHm.
+        { - intros.
+    
+              apply le_S. apply IHm.
+      * intros. apply Sn_le_Sm__n_le_m. apply n_le_m__Sn_le_Sm. simpl in H. apply le_Sn_le. apply IHm.
+      * intros. apply Sn_le_Sm__n_le_m. 
+    
+    apply le_trans with m.
+    + apply n_le_m__Sn_le_Sm. apply IHn.
+      apply ble_Sn_m in H. apply H.
+    + 
+
+    + (* apply le_Sn_le. *)
+      apply n_le_m__Sn_le_Sm.
+
+    (*
+    apply le_trans with (S m).
+    + apply n_le_m__Sn_le_Sm. apply IHn. induction H.
+    *)
 
 
 
