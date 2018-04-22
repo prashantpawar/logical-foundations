@@ -382,17 +382,15 @@ Qed.
 
 Theorem leb_complete : forall n m,
   leb n m = true -> n <= m.
-Proof. 
+Proof.
   intros.
-  generalize dependent n.
-  induction m.
-  - intros. induction n.
-    + reflexivity.
+  generalize dependent m.
+  induction n.
+  - intros. apply O_le_n.
+  - intros m H. induction m.
     + inversion H.
-  - intros n H. apply le_S. apply IHm. apply ble_Sn_m_n_m.
-Qed
-
-
+    + apply n_le_m__Sn_le_Sm. apply IHn. simpl in H. apply H.
+Qed.
 
 
 
