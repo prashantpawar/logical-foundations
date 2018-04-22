@@ -318,63 +318,79 @@ Proof.
   - simpl. rewrite -> IHn. reflexivity.
 Qed.
 
+Theorem n_ble_m__Sn_ble_Sm : forall n m,
+  leb n m = true -> leb (S n) (S m) = true.
+Proof.
+  intros. simpl. apply H. Qed.
 
-Theorem ble_Sn_m : forall n m,
+Theorem Sn_ble_Sm__n_ble_m : forall n m,
+  leb (S n) (S m) = true -> leb n m = true.
+Proof.
+  intros.
+  simpl in H. apply H. Qed.
+
+
+(* 
+  if (S 4) <= 5 then 4 <= 5. YES
+  if 4 <= (S 3) then 4 <= 3. NO
+  if 4 <= 4 then (S 4) <= 5 NO
+  if 4 <= 4 then 4 <= (S 4) YES
+  if (S 4) <= (S 5) then 4 <= 5 YES
+  if (S 4) <= (S 4) then (S 4) <= 4 NO
+  if 4 <= 5 then (S 4) <= (S 5) YES
+  
+  if leb 4 (S 3) = true then leb 4 3 = true NO
+  if leb (S 3) 4 = true then leb 3 4 = true YES
+  if leb 4 4 = true then leb 4 (S 4) = true YES
+  if leb (S 4) (S 5) = true then leb 4 5 = true YES
+  if leb 4 5 = true then leb (S 4) (S 5) = true YES
+
+  O_le_n : 0 <= n.
+  le_n_Sm_le : n <= m -> n <= (S m)
+  n_le_m__Sn_le_Sm: n ≤ m → S n ≤ S m.
+  Sn_le_Sm__n_le_m: S n ≤ S m → n ≤ m.
+*)
+
+Theorem ble_Sn_m_n_m : forall n m,
   leb (S n) m = true ->
   leb n m = true.
 Proof.
   intros.
+  generalize dependent n.
   induction m.
-  - induction n.
+  - intros n contra. inversion contra.
+  - intros n H. induction n.
     + reflexivity.
-    + simpl in H. inversion H.
-  - simpl in H. rewrite H in IHm.
-Admitted.
+    + simpl. apply IHm. apply Sn_ble_Sm__n_ble_m in H. apply H.
+Qed.
+
+Theorem ble_n_m_n_Sm : forall n m,
+  leb n m = true ->
+  leb n (S m) = true.
+Proof.
+  intros.
+  apply ble_Sn_m_n_m. simpl. apply H. Qed.
+
+Theorem le_n_Sm_le : forall n m, 
+  n <= m -> n <= (S m).
+Proof.
+  intros.
+  apply le_trans with (S n).
+  - apply le_S. apply le_n.
+  - apply n_le_m__Sn_le_Sm. apply H.
+Qed.
 
 Theorem leb_complete : forall n m,
   leb n m = true -> n <= m.
 Proof. 
   intros.
-  generalize dependent m.
-  induction n.
-  - intros m H. apply O_le_n.
-  - intros m H. 
-
-
-
-  intros n m H.
   generalize dependent n.
-  induction n.
-  - intros. apply O_le_n.
-  - intros. apply le_trans with (S m).
-    + apply n_le_m__Sn_le_Sm. apply IHn. apply ble_Sn_m. apply H.
-    + destruct IHn.
-      * apply ble_Sn_m. apply H.
-      * 
-  
-   induction m.
-    + intros. inversion H.
-    + intros. apply le_trans with (m).
-      * apply IHm.
-        { - intros.
-    
-              apply le_S. apply IHm.
-      * intros. apply Sn_le_Sm__n_le_m. apply n_le_m__Sn_le_Sm. simpl in H. apply le_Sn_le. apply IHm.
-      * intros. apply Sn_le_Sm__n_le_m. 
-    
-    apply le_trans with m.
-    + apply n_le_m__Sn_le_Sm. apply IHn.
-      apply ble_Sn_m in H. apply H.
-    + 
-
-    + (* apply le_Sn_le. *)
-      apply n_le_m__Sn_le_Sm.
-
-    (*
-    apply le_trans with (S m).
-    + apply n_le_m__Sn_le_Sm. apply IHn. induction H.
-    *)
-
+  induction m.
+  - intros. induction n.
+    + reflexivity.
+    + inversion H.
+  - intros n H. apply le_S. apply IHm. apply ble_Sn_m_n_m.
+Qed
 
 
 
