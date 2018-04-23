@@ -337,6 +337,7 @@ Proof.
   if 4 <= 4 then 4 <= (S 4) YES
   if (S 4) <= (S 5) then 4 <= 5 YES
   if (S 4) <= (S 4) then (S 4) <= 4 NO
+  if (S 4) <= (S 4) then 4 <= (S 4) YES
   if 4 <= 5 then (S 4) <= (S 5) YES
   
   if leb 4 (S 3) = true then leb 4 3 = true NO
@@ -380,6 +381,15 @@ Proof.
   - apply n_le_m__Sn_le_Sm. apply H.
 Qed.
 
+Theorem le_Sn_m_le : forall n m, 
+  (S n) <= m -> n <= m.
+Proof.
+  intros.
+  induction m.
+  - inversion H.
+  - apply le_S. apply Sn_le_Sm__n_le_m in H. apply H.
+Qed.
+
 Theorem leb_complete : forall n m,
   leb n m = true -> n <= m.
 Proof.
@@ -392,8 +402,17 @@ Proof.
     + apply n_le_m__Sn_le_Sm. apply IHn. simpl in H. apply H.
 Qed.
 
-
-
+Theorem leb_correct : forall n m,
+  n <= m ->
+  leb n m = true.
+Proof.
+  intros.
+  induction m.
+  - inversion H. reflexivity.
+  - inversion H.
+    + simpl. symmetry. apply leb_refl.
+    + apply ble_n_m_n_Sm. apply IHm. apply H1.
+Qed.
 
 
 
