@@ -414,20 +414,84 @@ Proof.
     + apply ble_n_m_n_Sm. apply IHm. apply H1.
 Qed.
 
+Theorem leb_true_trans : forall n m o,
+  leb n m = true -> leb m o = true -> leb n o = true.
+Proof.
+  intros. 
+  apply leb_correct. 
+  apply leb_complete in H. 
+  apply leb_complete in H0.
+  apply le_trans with m.
+  - apply H.
+  - apply H0.
+Qed.
 
 
+(* Exercise: 2 stars, optional (leb_iff) *)
+Theorem leb_iff : forall n m,
+  leb n m = true <-> n <= m.
+Proof.
+  intros n m. split.
+  - intros H. apply leb_complete. apply H.
+  - intros H. apply leb_correct. apply H.
+Qed.
 
+(* Exercise: 3 stars, recommended (R_provability) *)
+Inductive R : nat -> nat -> nat -> Prop :=
+  | c1 : R 0 0 0
+  | c2 : forall m n o, R m n o -> R (S m) n (S o)
+  | c3 : forall m n o, R m n o -> R m (S n) (S o)
+  | c4 : forall m n o, R (S m) (S n) (S (S o)) -> R m n o
+  | c5 : forall m n o, R m n o -> R n m o.
 
+Lemma c2_inverse : forall m n o,
+  R (S m) n (S o) ->
+  R m n o.
+Proof.
+  intros.
+  apply c3 in H. apply c4 in H. apply H.
+Qed.
 
+Lemma c3_inverse : forall m n o,
+  R m (S n) (S o) ->
+  R m n o.
+Proof.
+  intros.
+  apply c2 in H. apply c4 in H. apply H.
+Qed.
 
+Lemma c4_inverse : forall m n o,
+  R m n o ->
+  R (S m) (S n) (S (S o)).
+Proof.
+  intros.
+  apply c2 in H. apply c3 in H. apply H.
+Qed.
 
+Theorem test_R1 :
+  R 1 1 2.
+Proof.
+  apply c2. apply c3. apply c1.
+Qed.
 
+Theorem test_R2 :
+  R 2 2 6.
+Proof.
+  apply c2.
+  apply c3.
+  apply c2.
+  apply c3.
+Abort. (* Not Provable *)
 
+(* If we dropped constructor c5 from the definition of R, would the set of provable propositions change? Briefly (1 sentence) explain your answer.
 
+No it wouldn't because proposition c2 and c3 already cover that scenario
+*)
 
+(* If we dropped constructor c4 from the definition of R, would the set of provable propositions change? Briefly (1 sentence) explain your answer.
 
-
-
+Not it wouldn't because proposition c4 increments m, n and o and the set of the rest of the proposition do not offer any convergence on o.
+*)
 
 
 
