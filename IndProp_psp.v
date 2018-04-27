@@ -12,7 +12,6 @@ Fail Inductive wrong_ev (n : nat) : Prop :=
 | wrong_ev_0 : wrong_ev 0
 | wrong_ev_SS : forall n, wrong_ev n -> wrong_ev (S (S n)).
 
-
 Theorem ev_4 : ev 4.
 Proof. apply ev_SS. apply ev_SS. apply ev_0. Qed.
 
@@ -492,6 +491,165 @@ No it wouldn't because proposition c2 and c3 already cover that scenario
 
 Not it wouldn't because proposition c4 increments m, n and o and the set of the rest of the proposition do not offer any convergence on o.
 *)
+
+Lemma R_m_n_O : forall o,
+  R 0 0 o ->
+  o = 0.
+Proof.
+Admitted.
+
+
+(* Exercise: 3 stars, optional (R_fact) *)
+Definition fR : nat -> nat -> nat :=
+  plus.
+
+Example test_R_fR_equ1:
+  R 2 3 5 <-> fR 2 3 = 5.
+Proof.
+  split.
+  - reflexivity.
+  - intros. apply c2. apply c3. apply c2. apply c3. apply c3. apply c1.
+Qed.
+
+Lemma fR_O_n : forall n,
+  fR O n = n.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Lemma fR_n_O : forall n,
+  fR n O = n.
+Proof. intros. induction n.
+  - reflexivity.
+  - simpl. apply eq_S. apply IHn.
+Qed.
+
+Lemma fR_m_Sn : forall m n,
+  fR m (S n) = S(fR m n).
+Proof.
+  intros.
+  induction m.
+  - reflexivity.
+  - simpl. apply eq_S. apply IHm.
+Qed.
+
+Lemma fR_n_m_O : forall m n,
+  fR m n = 0 ->
+  m = 0 /\ n = 0.
+Proof. 
+  intros. induction n.
+  - split.
+    + induction m.
+      * reflexivity.
+      * inversion H.
+    + reflexivity.
+  - split.
+    + induction m.
+      * reflexivity.
+      * inversion H.
+    + rewrite fR_m_Sn in H. inversion H.
+Qed.
+
+Lemma n_m_O_fR : forall m n,
+  m = 0 /\ n = 0 ->
+  fR m n = 0.
+Proof. 
+  intros. induction n.
+  - destruct H. rewrite H. reflexivity.
+  - rewrite fR_m_Sn. inversion H. inversion H1.
+Qed.
+
+Theorem R_equiv_fR : forall m n o,
+  R m n o <-> fR m n = o. 
+Proof.
+Abort.
+
+(* Exercise: 4 stars, advanced (subsequence) *)
+Inductive subseq : list nat -> list nat -> Prop :=
+  | sc_nil : forall l : list nat, subseq [] l
+  | sc_eq : forall (x : nat) (l1 l2:list nat), subseq l1 l2 -> subseq (x :: l1) (x::l2)
+  | sc_eatl2 : forall (x : nat) (l1 l2:list nat), subseq l1 l2 -> subseq l1 (x :: l2).
+
+Theorem subseq_test1 : 
+  subseq [1;2;3] [1;2;3].
+Proof.
+  apply sc_eq. apply sc_eq. apply sc_eq. apply sc_nil.
+Qed.
+
+
+Theorem subseq_test2 :
+  subseq [1;2;3] [1;1;1;2;2;3].
+Proof.
+  apply sc_eq. apply sc_eatl2. apply sc_eatl2. apply sc_eq. apply sc_eatl2. apply sc_eq. apply sc_nil.
+Qed.
+
+Theorem subseq_test3 :
+  subseq [1;2;3] [1;2;7;3].
+Proof.
+  apply sc_eq. apply sc_eq. apply sc_eatl2. apply sc_eq. apply sc_nil.
+Qed.
+
+Theorem subseq_test4 :
+  subseq [1;2;3] [5;6;1;9;9;2;7;3;8].
+Proof.
+  apply sc_eatl2. apply sc_eatl2. apply sc_eq. 
+  apply sc_eatl2. apply sc_eatl2. apply sc_eq.
+  apply sc_eatl2. apply sc_eq. apply sc_eatl2. 
+  apply sc_nil.
+Qed.
+
+Theorem subseq_test5 :
+  subseq [1;2;3] [1;2].
+Proof.
+  apply sc_eq. apply sc_eq.
+Abort.
+
+Theorem subseq_test6 :
+  subseq [1;2;3] [].
+Proof.
+Abort.
+
+Theorem subseq_test7 :
+  subseq [] [1;2].
+Proof.
+  apply sc_nil.
+Qed.
+
+Theorem subseq_refl : forall l,
+  subseq l l.
+Proof.
+  intros l.
+  induction l.
+  - apply sc_nil.
+  - apply sc_eq. apply IHl.
+Qed.
+
+Lemma sc_eatl2_inverse : forall (x : nat) (l1 l2 : list nat),
+  subseq l1 l2 ->
+  subseq l1 (x :: l2).
+Proof.
+  intros. apply sc_eatl2. apply H.
+Qed.
+
+Theorem subseq_app : forall l1 l2 l3,
+  subseq l1 l2 ->
+  subseq l1 (l2 ++ l3).
+Proof.
+  intros.
+  induction H.
+  - apply sc_nil.
+  - simpl. apply sc_eq. apply IHsubseq.
+  - simpl. apply sc_eatl2. apply IHsubseq.
+Qed.
+
+
+
+
+
+
+
+
+
 
 
 
