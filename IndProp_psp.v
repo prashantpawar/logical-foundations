@@ -642,6 +642,43 @@ Proof.
   - simpl. apply sc_eatl2. apply IHsubseq.
 Qed.
 
+Theorem subseq_shrink : forall (x : nat) (l1 l2 : list nat),
+  subseq (x :: l1) l2 -> subseq l1 l2.
+Proof.
+  intros.
+  generalize dependent x.
+  generalize dependent l1.
+  induction l2.
+  - intros. inversion H.
+  - intros. apply sc_eatl2. inversion H.
+    + apply H1.
+    + apply IHl2 with x0. apply H2.
+Qed.
+
+
+(*
+Totally Cheated on this one
+*)
+
+Theorem subseq_trans : forall l1 l2 l3,
+  subseq l1 l2 -> subseq l2 l3 -> subseq l1 l3.
+Proof.
+  intros l1 l2 l3 H1 H2.
+  generalize dependent l1.
+  induction H2.
+  - intros. inversion H1. apply sc_nil.
+  - intros. inversion H1.
+    + intros. apply sc_nil.
+    + apply sc_eq. apply IHsubseq. apply H3.
+    + rewrite <- H0. apply sc_eatl2. apply IHsubseq. rewrite H0. apply H3.
+  - intros. apply IHsubseq in H1. apply sc_eatl2. apply H1.
+Qed.
+
+
+
+
+
+
 
 
 
