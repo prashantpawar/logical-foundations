@@ -674,6 +674,149 @@ Proof.
   - intros. apply IHsubseq in H1. apply sc_eatl2. apply H1.
 Qed.
 
+(* Exercise: 2 stars, optional (R_provability2) *)
+
+Inductive R' : nat -> list nat -> Prop :=
+  | c'1 : R' 0 []
+  | c'2 : forall n l, R' n l -> R' (S n) (n :: l)
+  | c'3 : forall n l, R' (S n) l -> R' n l.
+
+Example test_R'1 : R' 2 [1;0].
+Proof.
+  apply c'2. apply c'2. apply c'1.
+Qed.
+
+Example test_R'2 : R' 1 [1;2;1;0].
+Proof.
+  apply c'3. apply c'2. 
+  apply c'3. apply c'3. apply c'2.
+  apply c'2.
+  apply c'2.
+  apply c'1.
+Qed.
+
+Example test_R'3 : R' 6 [3;2;1;0].
+Proof.
+  apply c'3.
+Abort.
+
+
+(* Case Study: Regular Experssions *)
+Inductive reg_exp {T : Type} : Type :=
+| EmptySet : reg_exp
+| EmptyStr : reg_exp
+| Char     : T -> reg_exp
+| App      : reg_exp -> reg_exp -> reg_exp
+| Union    : reg_exp -> reg_exp -> reg_exp
+| Star     : reg_exp -> reg_exp.
+
+Inductive exp_match {T} : list T -> reg_exp -> Prop :=
+| MEmpty  : exp_match [] EmptyStr
+| MChar   : forall x, exp_match [x] (Char x)
+| MApp    : forall s1 re1 s2 re2, 
+              exp_match s1 re1 ->
+              exp_match s2 re2 ->
+              exp_match (s1 ++ s2) (App re1 re2)
+| MUnionL  : forall s1 re1 re2,
+              exp_match s1 re1 ->
+              exp_match s1 (Union re1 re2)
+| MUnionR  : forall s1 re1 re2,
+              exp_match s1 re2 ->
+              exp_match s1 (Union re1 re2)
+| MStar0  : forall re, exp_match [] (Star re)
+| MStarApp: forall s1 s2 re,
+              exp_match s1 re ->
+              exp_match s2 (Star re) ->
+              exp_match (s1 ++ s2) (Star re).
+
+Notation "s =~ re" := (exp_match s re) (at level 80).
+
+Example reg_exp_ex1 : [1] =~ Char 1.
+Proof. apply MChar. Qed.
+
+Example reg_exp_ex12 : [1; 2] =~ App (Char 1) (Char 2).
+Proof. 
+  apply (MApp [1] _ [2]).
+  - apply MChar.
+  - apply MChar.
+Qed.
+
+Example reg_exp_ex3 : ~ ([1; 2] =~ Char 1).
+Proof.
+  intros contra.
+  inversion contra.
+Qed.
+
+Fixpoint reg_exp_of_list {T} (l : list T) :=
+  match l with
+  | [] => EmptyStr
+  | x :: l' => App (Char x) (reg_exp_of_list l')
+  end.
+
+Example reg_exp_ex4 : [1; 2; 3] =~ reg_exp_of_list [1; 2; 3].
+Proof.
+  simpl.
+  apply (MApp [1]).
+  { apply MChar. }
+  apply (MApp [2]).
+  { apply MChar. }
+  apply (MApp [3]).
+  { apply MChar. }
+  apply MEmpty.
+Qed.
+
+Lemma MStar1 :
+  forall T s (re : @reg_exp T) ,
+         s =~ re ->
+         s =~ Star re.
+Proof.
+  intros.
+  rewrite <- app_nil_r with (l:=s).
+  apply MStarApp.
+  - apply H.
+  - apply MStar0.
+Qed.
+
+(* Exercise: 3 stars (exp_match ex1) *)
+Lemma empty_is_empty : forall T (s : list T),
+  ~ (s =~ EmptySet).
+Proof.
+  unfold not.
+  intros T s contra.
+  inversion contra.
+Qed.
+
+Lemma MUnion' : forall T (s : list T) (re1 re2 : @reg_exp T),
+  s =~ re1 \/ s =~ re2 ->
+  s =~ Union re1 re2.
+Proof.
+  intros T s re1 re2 [H1 | H2].
+  - apply MUnionL. apply H1.
+  - apply MUnionR. apply H2.
+Qed.
+
+Lemma MStar' : forall T (ss : list (list T)) (re : reg_exp),
+  (forall s, In s ss -> s =~ re) ->
+  fold app ss [] =~ Star re.
+Proof.
+  intros.
+  induction ss.
+  - simpl. simpl in H. apply MStar0.
+  - simpl. apply MStarApp.
+    + simpl in H. apply H. left. reflexivity.
+    + simpl in H. apply IHss. intros. apply H. right. apply H0.
+Qed.
+
+
+
+
+
+
+
+
+
+
+
 
 
 
