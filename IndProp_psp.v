@@ -834,21 +834,6 @@ Proof.
   - simpl. inversion H.
 Qed.
 
-Lemma reg_exp_of_list_empty_inv : forall T (s : list T),
-  [] =~ reg_exp_of_list s ->
-  s = [].
-Proof.
-  intros. generalize dependent s. induction s.
-  - reflexivity.
-  - intros. destruct IHs.
-    + (* apply (reg_exp_of_list_empty _). inversion H.
-      rewrite <- H2 in H. rewrite <- H1 in H. rewrite <- H0 in H.
-      destruct H.
-      * apply reg_exp_of_list_empty. apply reg_exp_of_list_refl.
-      apply MEmpty. destruct H.
-      apply (MApp s1 re1 s2 re2).*)
-Abort.
-
 Lemma reg_exp_of_list_basic : forall T (s1 s2 : list T),
   s1 = s2 ->
   s1 =~ reg_exp_of_list s2.
@@ -862,56 +847,44 @@ Proof.
       + apply reg_exp_of_list_refl.
 Qed.
 
-(** Needs Better names **)
-
-Lemma body_same : forall (x y:nat) (l1 l2: list nat),
-  x :: l1 = y :: l2 ->
-  l1 = l2.
-Proof.
-  intros.
-  generalize dependent l1.
-  induction l2.
-  - intros. induction l1.
-    + reflexivity.
-    + inversion H.
-  - intros. induction l1.
-    + inversion H.
-    + inversion H. reflexivity.
-Qed.
-
-Lemma body_same_inv1 : forall (x:nat) (l1 l2: list nat),
-  l1 = l2 ->
-  x :: l1 = x :: l2.
-Proof.
-  intros. rewrite H. reflexivity.
-Qed.
-
-Lemma body_same_inv : forall (x y:nat) (l1 l2: list nat),
-  l1 = l2 ->
-  x = y ->
-  x :: l1 = y :: l2.
-Proof.
-  intros.
-  rewrite H0.
-  apply body_same_inv1.
-  apply H.
-Qed.
-
-(** End **)
-
 Lemma reg_exp_of_list_basic_inv : forall T (s1 s2 : list T),
   s1 =~ reg_exp_of_list s2 ->
   s1 = s2.
 Proof.
   intros.
   generalize dependent s1.
-  induction s2.
+  induction s2 as [| x2].
   - intros. simpl in H. inversion H. reflexivity.
-  - intros. rewrite IHs2.
-    + apply IHs2. simpl in H.
-    inversion H. inversion H3. rewrite <- app_plus. 
-Abort.
+  - intros. inversion H. inversion H3. apply f_equal. apply IHs2. apply H4.
+Qed.
 
+
+Lemma reg_exp_of_list_spec : forall T (s1 s2 : list T),
+  s1 =~ reg_exp_of_list s2 <-> s1 = s2.
+Proof.
+  split.
+  - apply reg_exp_of_list_basic_inv.
+  - apply reg_exp_of_list_basic.
+Qed.
+
+Fixpoint re_chars {T} (re : reg_exp) : list T :=
+  match re with
+  | EmptySet => []
+  | EmptyStr => []
+  | Char x => [x]
+  | App re1 re2 => re_chars re1 ++ re_chars re2
+  | Union re1 re2 => re_chars re1 ++ re_chars re2
+  | Star re => re_chars re
+  end.
+  
+
+
+Theorem in_re_match : forall T (s : list T) (re : reg_exp) (x : T),
+  s =~ re ->
+  In x s ->
+  In x (re_chars re).
+Proof.
+  
 
 
 
