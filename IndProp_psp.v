@@ -795,6 +795,16 @@ Proof.
   - apply MUnionR. apply H2.
 Qed.
 
+Lemma MApp' : forall T (s1 s2 : list T) (re1 re2 : @reg_exp T),
+  s1 =~ re1 /\ s2 =~ re2 ->
+  s1 ++ s2 =~ App re1 re2.
+Proof.
+  intros T s1 s2 re1 re2 [H1 H2].
+  apply MApp.
+  - apply H1.
+  - apply H2.
+Qed.
+
 Lemma MStar' : forall T (ss : list (list T)) (re : reg_exp),
   (forall s, In s ss -> s =~ re) ->
   fold app ss [] =~ Star re.
@@ -884,7 +894,75 @@ Theorem in_re_match : forall T (s : list T) (re : reg_exp) (x : T),
   In x s ->
   In x (re_chars re).
 Proof.
-  
+  intros T s re x Hmatch Hin.
+  induction Hmatch
+    as [| x'
+        | s1 re1 s2 re2 Hmatch1 IH1 Hmatch2 IH2
+        | s1 re1 re2 Hmatch IH | re1 s2 re2 Hmatch IH
+        | re | s1 s2 re Hmatch1 IH1 Hmatch2 IH2].
+  - apply Hin.
+  - apply Hin.
+  - simpl. rewrite In_app_iff in *.
+    destruct Hin as [Hin | Hin].
+    + left. apply (IH1 Hin).
+    + right. apply (IH2 Hin).
+  - simpl. rewrite In_app_iff. left. apply (IH Hin).
+  - simpl. rewrite In_app_iff. right. apply (IH Hin).
+  - destruct Hin.
+  - simpl. apply In_app_iff in Hin. 
+    destruct Hin as [Hin | Hin].
+    + apply (IH1 Hin).
+    + apply (IH2 Hin).
+Qed.
+
+(* Exercise: 4 stars (re_not_empty) *)
+Fixpoint re_not_empty {T : Type} (re : @reg_exp T) : bool :=
+  match re with
+  | EmptySet => false
+  | EmptyStr => true
+  | Char _ => true
+  | App re1 re2 => andb (re_not_empty re1) (re_not_empty re2)
+  | Union re1 re2 => orb (re_not_empty re1) (re_not_empty re2)
+  | Star _ => true
+  end.
+
+(* Compute (re_not_empty (Star (EmptySet))). *)
+Compute (re_not_empty (Char [1;2;3;4])).
+Compute (re_not_empty (App (Char 1) (EmptySet))).
+
+Lemma re_not_empty_correct : forall T (re : @reg_exp T),
+  (exists s, s =~ re) <-> re_not_empty re = true.
+Proof.
+  intros T re. split.
+  { intros H. induction re.
+    - (* EmptySet *) inversion H. inversion H0.
+    - (* EmptyStr *) reflexivity.
+    - (* Char _ *) reflexivity.
+    - (* App _ _ *) simpl. rewrite andb_true_iff. split.
+      + (* re1 *) apply IHre1. inversion H. inversion H0. exists s1. apply H4.
+      + (* re2 *) apply IHre2. inversion H. inversion H0. exists s2. apply H5.
+    - (* Union _ _ *) simpl. apply orb_true_iff. inversion H. inversion H0.
+      + left. apply IHre1. exists x. apply H3.
+      + right. apply IHre2. exists x. apply H3.
+    - (* Star *) reflexivity. }
+    { induction re.
+      - (* EmptySet *) intros. inversion H.
+      - (* EmptyStr *) exists []. apply MEmpty.
+      - (* Char _ *) exists [t]. apply MChar.
+      - (* App _ _ *) intros. inversion H. apply andb_true_iff in H1. 
+        destruct H1. apply IHre1 in H0. apply IHre2 in H1. 
+        inversion H0. inversion H1. exists (x ++ x0). apply MApp.
+        + apply H2.
+        + apply H3.
+      - (* Union _ _ *) intros. inversion H. apply orb_true_iff in H1.
+        destruct H1.
+        + apply IHre1 in H0. inversion H0. exists x. apply MUnionL. apply H1.
+        + apply IHre2 in H0. inversion H0. exists x. apply MUnionR. apply H1.
+      - (* Star _ *) intros. exists []. apply MStar0. }
+Qed.
+
+
+
 
 
 

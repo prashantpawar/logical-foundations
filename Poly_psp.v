@@ -1,8 +1,7 @@
 (* Suppress some annoying warnings from Coq: *)
 Set Warnings "-notation-overridden,-parsing".
 
-Add LoadPath "/Users/developer/development/software-foundations/logical-foundations".
-Require Export Lists_psp.
+Require Export Lists.
 
 (*** Polymorphism *)
 
