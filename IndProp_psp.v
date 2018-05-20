@@ -962,6 +962,344 @@ Proof.
 Qed.
 
 
+(* The remember tactic *)
+
+Lemma star_app': forall T (s1 s2 : list T) (re re' : reg_exp),
+  re' = Star re ->
+  s1 =~ re' ->
+  s2 =~ Star re ->
+  s1 ++ s2 =~ Star re.
+Proof.
+  induction re'.
+  - intros. inversion H.
+  - intros. inversion H.
+  - intros. inversion H.
+  - intros. inversion H.
+  - intros. inversion H.
+  - intros. inversion H. inversion H0. 
+    + simpl. apply H1.
+    + subst. apply IHre'.
+Abort.
+
+Lemma star_app: forall T (s1 s2 : list T) (re : @reg_exp T),
+  s1 =~ Star re ->
+  s2 =~ Star re ->
+  s1 ++ s2 =~ Star re.
+Proof.
+  intros T s1 s2 re H1.
+  remember (Star re) as re'.
+  generalize dependent s2.
+  induction H1.
+  - (* MEmpty *) inversion Heqre'.
+  - (* MChar *) inversion Heqre'.
+  - (* MApp *) inversion Heqre'.
+  - (* MUnionL *) inversion Heqre'.
+  - (* MUnionR *) inversion Heqre'.
+  - (* MStar0 *) intros. simpl. apply H.
+  - (* MStarApp *) inversion Heqre'. intros. rewrite H0 in IHexp_match1. rewrite H0 in IHexp_match2. rewrite <- app_assoc. apply MStarApp.
+    + rewrite H0 in H1_. apply H1_.
+    + apply IHexp_match2.
+      * reflexivity.
+      * apply H.
+Qed.
+
+
+Lemma MStar'' : forall T (s : list T) (re : reg_exp),
+  s =~ Star re ->
+  exists ss : list (list T),
+    s = fold app ss []
+    /\ forall s', In s' ss -> s' =~ re.
+Proof.
+  intros.
+  remember (Star re) as re'.
+  generalize dependent re.
+  induction H.
+  - intros. inversion Heqre'.
+  - intros. inversion Heqre'.
+  - intros. inversion Heqre'.
+  - intros. inversion Heqre'.
+  - intros. inversion Heqre'.
+  - intros. exists []. split.
+    + reflexivity.
+    + intros. inversion H.
+  - intros. remember (s1 ++ s2) as ss. Admitted.
+
+
+(*
+  - intros. induction (s1 ++ s2).
+    + exists []. split.
+      * reflexivity.
+      * simpl. intros. inversion H1.
+    + exists [x :: l]. split.
+      * simpl. rewrite app_nil_r. reflexivity.
+      * simpl. destruct IHl. destruct H1. intros. apply H2. simpl in H3. destruct H3.
+        { -   
+
+  
+  
+  
+  intros. remember (s1 ++ s2) as ss. induction re.
+    + intros. inversion Heqre'. exists [s1 ++ s2]. split.
+      * simpl. symmetry. apply app_nil_r.
+      * rewrite H2. 
+
+
+
+    exists [s1 ++ s2]. split.
+    + simpl. symmetry. apply app_nil_r.
+    + 
+      intros. simpl in H1. destruct H1.
+      * 
+
+*)
+(* 
+  intros T s re.
+  remember (Star re) as re'.
+  generalize dependent re'.
+  induction re.
+  - intros. induction s. 
+    + exists []. split.
+      * reflexivity.
+      * intros. inversion H0.
+    + exists ([x :: s]). split.
+      * simpl. rewrite app_nil_r. reflexivity.
+      * intros. simpl in H0. destruct H0.
+        { - inversion H0.
+    
+    exists [s]. split.
+    + simpl. symmetry. apply app_nil_r.
+    + intros. 
+    inversion H.
+    + exists [s]. simpl. split.
+      * rewrite app_nil_r. apply H0.
+      * intros. induction Heqre'. apply MEmpty.
+
+
+
+
+  intros T s re.
+  remember (Star re) as re'.
+  generalize dependent re.
+  induction re'.
+  - intros. inversion Heqre'.
+  - intros. inversion Heqre'.
+  - intros. inversion Heqre'.
+  - intros. inversion Heqre'.
+  - intros. inversion Heqre'.
+  - intros. inversion Heqre'. 
+    exists [s]. split.
+    + simpl. symmetry. apply app_nil_r.
+    + intros. inversion H.
+      * rewrite <- H2 in H. simpl in H0. 
+      intros. simpl in H0. destruct H0.
+      * 
+        rewrite Heqre' in H. apply MStar0. in H.
+
+
+
+
+
+
+
+
+  - intros. inversion Heqre'.
+  - intros. inversion Heqre'.
+  - intros. inversion Heqre'.
+  - intros. inversion Heqre'.
+  - intros. inversion Heqre'.
+  - intros. exists [s]. split.
+    + simpl. rewrite app_nil_r. reflexivity.
+    + apply IHre'. intros. simpl in H0. destruct H0.
+      * 
+
+
+*)
+(* Almost succeeded
+  intros T s re H.
+  remember (Star re) as re'.
+  generalize dependent re.
+  induction H.
+  - intros. inversion Heqre'.
+  - intros. inversion Heqre'.
+  - intros. inversion Heqre'.
+  - intros. inversion Heqre'.
+  - intros. inversion Heqre'.
+  - intros. exists []. split.
+    + reflexivity.
+    + intros. inversion H.
+  - intros. exists [s1 ++ s2]. split.
+    + simpl. symmetry. apply app_nil_r.
+    + simpl.
+      inversion Heqre'.
+      intros. simpl in H1. destruct H1.
+      * 
+      apply IHexp_match2. rewrite <- H1.
+
+
+
+  - simpl. rewrite app_nil_r. reflexivity.
+  - apply MStar1 in H. induction H. 
+    + intros. simpl in H. inversion H
+    + rewrite <- H0. Search Star. 
+  
+  
+  
+  
+  
+  induction re'.
+    + inversion Heqre'.
+    + inversion Heqre'.
+    + inversion Heqre'.
+    + inversion Heqre'.
+    + inversion Heqre'.
+    + inversion Heqre'. rewrite H1 in IHre'. apply IHre'.
+      { Search Star. induction re.
+        - inversion H.
+        Search MStar'. inversion Heqre'.
+*)
+
+(* Exercise: 5 stars, advanced (pumping) *)
+Module Pumping.
+
+Fixpoint pumping_constant {T} (re : @reg_exp T) : nat :=
+  match re with
+  | EmptySet => 0
+  | EmptyStr => 1
+  | Char _ => 2
+  | App re1 re2 =>
+      pumping_constant re1 + pumping_constant re2
+  | Union re1 re2 =>
+      pumping_constant re1 + pumping_constant re2
+  | Star _ => 1
+  end.
+
+Fixpoint napp {T} (n : nat) (l : list T) : list T :=
+  match n with
+  | 0 => []
+  | S n' => l ++ napp n' l
+  end.
+
+Lemma napp_plus : forall T (n m : nat) (l : list T),
+  napp (n + m) l = napp n l ++ napp m l.
+Proof.
+  intros.
+  induction n.
+  - reflexivity.
+  - simpl. rewrite IHn. apply app_assoc.
+Qed.
+
+Lemma pumping: forall T (re : @reg_exp T) s,
+  s =~ re ->
+  pumping_constant re <= length s ->
+  exists s1 s2 s3,
+    s = s1 ++ s2 ++ s3 /\
+    s2 <> [] /\
+    forall m, s1 ++ napp m s2 ++ s3 =~ re.
+  Import Coq.omega.Omega.
+Proof.
+  intros T re s Hmatch.  
+  induction Hmatch
+    as [ | x | s1 re1 s2 re2 Hmatch1 IH1 Hmatch2 IH2
+       | s1 re1 re2 Hmatch IH | re1 s2 re2 Hmatch IH
+       | re | s1 s2 re Hmatch1 IH1 Hmatch2 IH2 ].
+  - (* MEmpty *) simpl. omega.
+  - (* MChar *) simpl. omega.
+  - (* MApp *) simpl. intros. exists s1. exists s2. exists []. simpl. split.
+    + rewrite app_nil_r. reflexivity.
+    + split.
+Abort.
+
+End Pumping.
+
+Theorem filter_not_empty_In : forall n l,
+  filter (beq_nat n) l <> [] ->
+  In n l.
+Proof.
+  intros n l. induction l as [|m l' IHl'].
+  - simpl. intros. apply H. reflexivity.
+  - simpl. destruct (beq_nat n m) eqn:H.
+    + intros. left. apply beq_nat_true_iff in H. rewrite H. reflexivity.
+    + intros. right. apply IHl'. apply H0.
+Qed.
+
+Inductive reflect (P : Prop) : bool -> Prop :=
+  | ReflectT : P -> reflect P true
+  | ReflectF : ~P -> reflect P false.
+
+Theorem iff_reflect : forall P b, 
+  (P <-> b = true) -> reflect P b.
+Proof.
+  intros. destruct b.
+  - apply ReflectT. rewrite H. reflexivity.
+  - apply ReflectF. rewrite H. unfold not. intros. inversion H0.
+Qed.
+
+(* Exercise: 2 stars, recommended (reflect_iff) *)
+Theorem reflect_iff : forall P b,
+  reflect P b -> (P <-> b = true).
+Proof.
+  intros P b H.
+  destruct b.
+  - split.
+    + intros. reflexivity.
+    + intros. inversion H. apply H1.
+  - split.
+    + intros. inversion H. exfalso. apply H1. apply H0.
+    + intros. inversion H0.
+Qed.
+
+Lemma beq_natP : forall n m, reflect (n = m) (beq_nat n m).
+Proof.
+  intros n m. apply iff_reflect. rewrite beq_nat_true_iff. reflexivity.
+Qed.
+
+
+Theorem filter_not_empty_In' : forall n l,
+  filter (beq_nat n) l <> [] ->
+  In n l.
+Proof.
+  intros n l. induction l as [| m l' IHl'].
+  - simpl. intros H. apply H. reflexivity.
+  - simpl. destruct (beq_natP n m) as [H | H].
+    + intros _. rewrite H. left. reflexivity.
+    + intros. unfold not in H. right. apply IHl'. apply H0.
+Qed.
+
+(* Exercise: 3 stars, recommended (beq_natP_practice) *)
+Fixpoint count n l :=
+  match l with
+  | [] => 0
+  | m :: l' => (if beq_nat n m then 1 else 0) + count n l'
+  end.
+
+Theorem beq_natP_practice : forall n l,
+  count n l = 0 -> ~(In n l).
+Proof.
+  intros. induction l as [|m l' IHl'].
+  - simpl. unfold not. intros contra. apply contra.
+  - simpl. unfold not. intros. simpl in H. destruct (beq_natP n m) as [H1 | H1].
+    + inversion H.
+    + simpl in H. unfold not in H1. destruct H0.
+      * symmetry in H0. apply H1 in H0. apply H0.
+      * apply IHl' in H0.
+        { - apply H0. }
+        { - apply H. }
+Qed.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
