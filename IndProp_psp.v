@@ -1286,10 +1286,154 @@ Proof.
         { - apply H. }
 Qed.
 
+(* Additional Exercises *)
+(*Exercise: 3 stars, recommended (nostutter_defn) *)
+
+Inductive nostutter {X:Type} : list X -> Prop :=
+  | NSEmpty : nostutter []
+  | NSSingleEl : forall n : X, nostutter [n]
+  | NSRepeated : forall (m n : X) (xs : list X), 
+      m <> n -> nostutter (n :: xs) -> nostutter (m :: n :: xs).
+
+Example test_nostutter_1: nostutter [3;1;4;1;5;6].
+Proof.
+  repeat constructor; apply beq_nat_false_iff; auto.
+Qed.
+
+Example test_nostutter_2: nostutter (@nil nat).
+Proof.
+  repeat constructor.
+Qed.
+
+Example test_nostutter_3: nostutter [5].
+Proof.
+  repeat constructor; apply beq_nat_false; auto.
+Qed.
+
+Example test_nostutter_4: not (nostutter [3;1;1;4]).
+Proof.
+  intro.
+  repeat match goal with
+    h: nostutter _|- _ => inversion h; clear h; subst
+  end.
+  contradiction H1; auto.
+Qed.
+
+(* Exercise: 4 stars, advanced (filter_challenge) *)
+Inductive inordermerge {X:Type} : list X -> list X -> list X -> Prop :=
+  | IOMEmpty : inordermerge [] [] []
+  | IOMMatchesL1 : forall (n : X) (l1 l2 l : list X),
+      inordermerge l1 l2 l -> inordermerge (n :: l1) l2 (n :: l)
+  | IOMMatchesL2 : forall (n : X) (l1 l2 l : list X),
+      inordermerge l1 l2 l -> inordermerge l1 (n :: l2) (n :: l).
+
+Example test_inordermerge_1 : inordermerge [1;6;2] [4;3] [1;4;6;2;3].
+Proof.
+  repeat constructor.
+Qed.
+
+Example test_inordermerge_2 : inordermerge [1;6;2] [] [1;6;2].
+Proof.
+  repeat constructor.
+Qed.
+
+Example test_inordermerge_3 : not (inordermerge [1;2;3] [4;5;6] [1;4;6]).
+Proof.
+  intro.
+  inversion H. clear H. subst.
+  inversion H3. clear H3. subst.
+  inversion H1.
+Qed.
+
+Lemma head_same {X:Type}: forall (x:X) (l1 l2 : list X),
+  l1 = l2 ->
+  x :: l1 = x :: l2.
+Proof.
+  intros. simpl. inversion H. reflexivity.
+Qed.
 
 
+(** **** Exercise: 3 stars (all_forallb) *)
+(** Inductively define a property [all] of lists, parameterized by a
+    type [X] and a property [P : X -> Prop], such that [all X P l]
+    asserts that [P] is true for every element of the list [l]. *)
+Inductive all {X:Type} : (X -> Prop) -> list X -> Prop :=
+  | all_nil : forall (P:X -> Prop), all P []
+  | all_match : forall (x:X) (l:list X) (P:X -> Prop), P x -> all P l -> all P (x::l).
+
+Example test_all_1 : all ev [0;2;4].
+Proof.
+  repeat constructor.
+Qed.
+
+Example test_all_2: ~(all ev [2;3;4;5]).
+Proof.
+  intro.
+  inversion H. clear H. subst.
+  inversion H4. clear H4. subst.
+  inversion H2. inversion H0.
+Qed.
 
 
+(** Recall the function [forallb], from the exercise
+    [forall_exists_challenge] in chapter [Poly]: *)
+Fixpoint forallb X (test : X -> bool) (l : list X) : bool :=
+  match l with
+  | [] => true
+  | x :: l' => test x && forallb X test l'
+  end.
+
+
+Lemma all_app {X:Type}: forall (x:X) (l:list X) (P: X -> Prop),
+  all P (x :: l) ->
+  P x /\ all P l.
+Proof.
+  intros. split.
+  - inversion H. apply H3.
+  - inversion H. apply H4.
+Qed.
+
+
+(** Using the property [all], write down a specification for [forallb],
+    and prove that it satisfies the specification. Try to make your 
+    specification as precise as possible.
+    Are there any important properties of the function [forallb] which
+    are not captured by your specification? *)
+Theorem all_forallb {X:Type} :
+  forall (test : X -> bool) (P: X -> Prop) (l : list X),
+  (forall n, test n = true /\ P n) ->
+  all P l ->
+  forallb X test l = true.
+Proof.
+  intros.
+  induction H0.
+  - reflexivity.
+  - simpl. apply andb_true_iff. split.
+    + destruct H with (n:=x). apply H2.
+    + apply IHall. apply H.
+Qed.
+
+Theorem filter_challenge {X:Type} :
+  forall (l l1 l2: list X) (test:X->bool),
+  (forall x, In x l1 -> test x = true) ->
+  (forall x, In x l2 -> test x = false) ->
+  inordermerge l1 l2 l ->
+  filter test l = l1.
+Proof.
+  intros l l1 l2 test Hl1 Hl2 H.
+  induction H.
+  - reflexivity.
+  - simpl. assert (test n = true) as C.
+    + apply Hl1. simpl. left. reflexivity.
+    + rewrite C. apply head_same. apply IHinordermerge.
+      * intros. apply Hl1. simpl. right. trivial.
+      * intros. apply Hl2. trivial.
+  - simpl. assert (test n = false) as C.
+    + apply Hl2. simpl. left. reflexivity.
+    + rewrite C. apply IHinordermerge.
+      * apply Hl1.
+      * intros. apply Hl2. simpl. right. apply H0.
+Qed.
 
 
 
