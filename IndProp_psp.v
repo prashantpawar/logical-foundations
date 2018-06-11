@@ -565,10 +565,10 @@ Proof.
 Abort.
 
 (* Exercise: 4 stars, advanced (subsequence) *)
-Inductive subseq : list nat -> list nat -> Prop :=
-  | sc_nil : forall l : list nat, subseq [] l
-  | sc_eq : forall (x : nat) (l1 l2:list nat), subseq l1 l2 -> subseq (x :: l1) (x::l2)
-  | sc_eatl2 : forall (x : nat) (l1 l2:list nat), subseq l1 l2 -> subseq l1 (x :: l2).
+Inductive subseq {X}: list X -> list X -> Prop :=
+  | sc_nil : forall l : list X, subseq [] l
+  | sc_eq : forall (x : X) (l1 l2:list X), subseq l1 l2 -> subseq (x :: l1) (x::l2)
+  | sc_eatl2 : forall (x : X) (l1 l2:list X), subseq l1 l2 -> subseq l1 (x :: l2).
 
 Theorem subseq_test1 : 
   subseq [1;2;3] [1;2;3].
@@ -615,7 +615,7 @@ Proof.
   apply sc_nil.
 Qed.
 
-Theorem subseq_refl : forall l,
+Theorem subseq_refl {X:Type}: forall l : list X,
   subseq l l.
 Proof.
   intros l.
@@ -631,7 +631,7 @@ Proof.
   intros. apply sc_eatl2. apply H.
 Qed.
 
-Theorem subseq_app : forall l1 l2 l3,
+Theorem subseq_app {X}: forall l1 l2 l3 : list X,
   subseq l1 l2 ->
   subseq l1 (l2 ++ l3).
 Proof.
@@ -655,12 +655,7 @@ Proof.
     + apply IHl2 with x0. apply H2.
 Qed.
 
-
-(*
-Totally Cheated on this one
-*)
-
-Theorem subseq_trans : forall l1 l2 l3,
+Theorem subseq_trans {X}: forall l1 l2 l3 : list X,
   subseq l1 l2 -> subseq l2 l3 -> subseq l1 l3.
 Proof.
   intros l1 l2 l3 H1 H2.
@@ -672,6 +667,15 @@ Proof.
     + apply sc_eq. apply IHsubseq. apply H3.
     + rewrite <- H0. apply sc_eatl2. apply IHsubseq. rewrite H0. apply H3.
   - intros. apply IHsubseq in H1. apply sc_eatl2. apply H1.
+Qed.
+
+Theorem subseq_nil {X}: forall l : list X,
+  subseq l [] -> l = [].
+Proof.
+  intros.
+  induction l.
+  - reflexivity.
+  - inversion H.
 Qed.
 
 (* Exercise: 2 stars, optional (R_provability2) *)
@@ -1435,6 +1439,342 @@ Proof.
       * intros. apply Hl2. simpl. right. apply H0.
 Qed.
 
+Theorem subseq_pad_l2 : forall (x : nat) (l1 l2 : list nat),
+  subseq l1 l2 -> subseq l1 (x :: l2).
+Proof.
+  intros.
+  generalize dependent x.
+  generalize dependent l2.
+  induction l1.
+  - intros. apply sc_nil.
+  - intros. simpl in *. apply sc_eatl2. apply H.
+Qed.
+
+
+(* Exercise: 5 stars, advanced (filter_challenge_2) *)
+Theorem filter_challenge_2 {X} :
+  forall (ls l : list X) (test:X->bool),
+  subseq ls l ->
+  (forall n, In n ls -> test n = true) ->
+  length ls <= length (filter test l).
+Proof.
+  intros ls l test Hsubseq G.
+  induction Hsubseq.
+  - apply O_le_n.
+  - simpl. assert (test x = true) as C.
+    + apply G. simpl. left. reflexivity.
+    + rewrite C. simpl. apply n_le_m__Sn_le_Sm. apply IHHsubseq.
+      intros. apply G. simpl. right. apply H.
+  - simpl. destruct (test x) eqn:C.
+    + simpl. apply le_S. apply IHHsubseq. intros. apply G. apply H.
+    + apply IHHsubseq. intros. apply G. apply H.
+Qed.
+
+
+(* Exercise: 4 stars, optional (palindromes) *)
+
+Inductive matchlast {X} : X -> list X -> list X -> Prop :=
+  | match_same : forall (x:X), matchlast x [x] []
+  | match_tail : forall (x y:X) (l m:list X), 
+      matchlast x l m -> matchlast x (y :: l) (y :: m).
+
+Inductive pal {X} : list X -> Prop :=
+  | pal_nil : pal []
+  | pal_single : forall x, pal [x]
+  | pal_match : forall (x:X) (l m:list X),
+      pal l -> matchlast x m l -> pal (x :: m).
+
+Inductive pal2 {X} : list X -> Prop :=
+  | c : forall l, l = rev l -> pal2 l.
+
+Lemma matchx_last {X} : forall (x:X) (m:list X),
+  matchlast x (m ++ [x]) m.
+Proof.
+  induction m.
+  - simpl. apply match_same.
+  - simpl. apply match_tail. apply IHm.
+Qed.
+
+Theorem pal_app_rev {X}: forall (l:list X),
+  pal (l ++ rev l).
+Proof.
+  induction l.
+  - simpl. apply pal_nil.
+  - simpl. rewrite app_plus. apply pal_match with (l0:=(l ++ rev l)).
+    + apply IHl.
+    + rewrite app_assoc. inversion IHl.
+      * simpl. apply match_same.
+      * apply match_tail. apply match_same.
+      * simpl. apply match_tail. apply matchx_last.
+Qed.
+
+Lemma rev_l {X}: forall (x:X) (l:list X),
+  l = rev l ->
+  x :: l = rev l ++ [x].
+Proof.
+  intros.
+  rewrite app_plus. symmetry. rewrite <- rev_involutive. 
+  rewrite rev_app_distr. rewrite <- H. simpl.
+  symmetry. rewrite <- rev_involutive.
+Abort.
+
+Theorem pal2_rev {X}: forall (l:list X),
+  pal2 l -> l = rev l.
+Proof.
+  induction l.
+  - intros. reflexivity.
+  - intros. simpl. rewrite app_plus. inversion H. simpl in H0.
+    rewrite <- H0. reflexivity.
+Qed.
+
+Lemma tail_same {X:Type}: forall (x:X) (l1 l2 : list X),
+  l1 = l2 ->
+  l1 ++ [x] = l2 ++ [x].
+Proof.
+  intros. rewrite H. reflexivity.
+Qed.
+
+Theorem pal2_app_rev {X}: forall (l:list X),
+  pal2 (l ++ rev l).
+Proof.
+  intros. induction l.
+  - simpl. apply c. reflexivity.
+  - simpl. rewrite app_plus. apply c.
+    inversion IHl. rewrite rev_app_distr.
+    rewrite rev_app_distr. rewrite rev_app_distr.
+    rewrite rev_involutive. simpl. rewrite app_plus. symmetry.
+    rewrite app_plus. rewrite <- app_assoc. reflexivity.
+Qed.
+
+
+Lemma pal_prefix {X} : forall (x:X) (l1 l2:list X),
+  pal ([x] ++ l1) -> l1 = l2 ++ [x].
+Proof.
+  Admitted.
+
+
+Theorem pal_rev {X}: forall (l:list X),
+  pal l -> l = rev l.
+Proof.
+  intros.
+  inversion H.
+  - reflexivity.
+  - reflexivity.
+  - inversion H1.
+    + reflexivity.
+    + subst. simpl in *.
+Abort.
+
+Theorem test_pal_1 : pal [1].
+Proof.
+  apply pal_single.
+Qed.
+
+Hint Resolve pal_nil pal_single pal_match match_same match_tail.
+
+Theorem test_pal_2 : pal [1;2;1].
+Proof.
+  apply pal_match with (l:=[2]).
+  - apply pal_single.
+  - apply match_tail. apply match_same.
+Qed.
+
+Theorem test_pal_3 : pal [1;2;3;2;1].
+Proof.
+  apply pal_match with (l:=[2;3;2]).
+  - apply pal_match with (l:=[3]).
+    + apply pal_single.
+    + apply match_tail. apply match_same.
+  - apply match_tail. apply match_tail. apply match_tail. apply match_same.
+Qed.
+
+Theorem test_pal_4 : pal [1;2;3;3;2;1].
+Proof.
+  apply pal_match with (l:=[2;3;3;2]).
+  - apply pal_match with (l:=[3;3]).
+    + apply pal_match with (l:=[]).
+      * apply pal_nil.
+      * apply match_same.
+    + apply match_tail. apply match_tail. apply match_same.
+  - apply match_tail. apply match_tail. apply match_tail. apply match_tail. apply match_same.
+Qed.
+
+Lemma rev_eq_pal_length: forall (X: Type) (n: nat) (l: list X),
+  length l <= n -> l = rev l -> pal l.
+Proof.
+  intros.
+  induction n.
+  - inversion H.
+    assert (G: l = []).
+    { - induction l.
+        + reflexivity.
+        + inversion H2. }
+    rewrite G. apply pal_nil.
+  - induction l.
+    + apply pal_nil. 
+    + simpl in *. inversion H. 
+Abort.
+
+(* Exercise: 5 stars, optional (palindrome_converse) *)
+Theorem palindrome_converse {X} : forall (l:list X),
+  l = rev l -> pal l.
+Proof.
+  intros.
+Abort.
+
+(* Exercise: 4 stars, advanced, optional (NoDup) *)
+(* Fixpoint In (A : Type) (x : A) (l : list A) : Prop :=
+   match l with
+   | [] => False
+   | x' :: l' => x' = x \/ In A x l'
+   end *)
+
+Inductive NoDup {X}: list X -> Prop :=
+  | NoDup_nil : NoDup []
+  | NoDup_element : forall (x:X) (l:list X), NoDup l -> ~ In x l -> NoDup (x :: l).
+
+Example tests_nodup_1 : NoDup [1;2;3;4].
+Proof.
+  apply NoDup_element.
+  - apply NoDup_element.
+    + apply NoDup_element.
+      * apply NoDup_element.
+        { - apply NoDup_nil. }
+        { - auto. }
+      * simpl. unfold not. intros. destruct H. inversion H. apply H.
+    + simpl. unfold not. intros. destruct H.
+      * inversion H.
+      * destruct H.
+        { - inversion H. }
+        { - apply H. }
+  - unfold not. intros. destruct H.
+    + inversion H.
+    + destruct H.
+      * inversion H.
+      * simpl in H. destruct H.
+        { - inversion H. }
+        { - apply H. }
+Qed.
+
+Example tests_nodup_2 : NoDup [1;2;1].
+Proof.
+  apply NoDup_element.
+  - apply NoDup_element.
+    + apply NoDup_element.
+      * apply NoDup_nil.
+      * simpl. auto.
+    + unfold not. intros. destruct H. inversion H. apply H.
+ - unfold not. intros. destruct H. inversion H. Abort. 
+
+
+Fixpoint disjoint {X} (l1 l2: list X) : Prop :=
+  ~ exists x, In x l1 /\ In x l2.
+
+
+Lemma disjoint_empty {X:Type} : forall (l:list X), 
+  disjoint l [].
+Proof.
+  intros. induction l.
+  - simpl. unfold not. intros. destruct H. destruct H. apply H.
+  - simpl. unfold not. intros. destruct H. destruct H. apply H0.
+Qed.
+
+Lemma disjoint_refl_false {X} : forall (l:list X),
+  l <> [] -> 
+  ~ disjoint l l.
+Proof.
+  intros.
+  induction l.
+  - simpl. unfold not. intros. apply H. reflexivity. 
+  - simpl. unfold not. intros. apply H0. exists x. split.
+    + left. reflexivity.
+    + left. reflexivity.
+Qed.
+
+Lemma In_empty {X:Type} : forall x:X,
+  ~ In x [].
+Proof.
+  intros. unfold not. intros.
+  inversion H.
+Qed.
+
+
+Theorem NoDup_disjoint_app {X} : forall l1 l2 : list X,
+  disjoint l1 l2 ->
+  NoDup (l1 ++ l2).
+Proof.
+  intros. induction l2.
+  - induction l1.
+    + simpl. apply NoDup_nil.
+    + simpl. rewrite app_nil_r in *. apply NoDup_element.
+      * apply IHl1. apply disjoint_empty.
+      * unfold not. intros. induction IHl1. 
+        { - inversion H0. }
+        { - apply IHn.
+            + apply disjoint_empty.
+            + unfold not in H1.
+      exists x. split.
+        { - simpl. left. reflexivity. }
+        { - simpl. 
+
+  intros. induction l1.
+  - induction l2.
+    + apply NoDup_nil.
+    + apply NoDup_element.
+      * simpl in *. apply IHl2. unfold not in *. intros. destruct H0. destruct H0. apply H0.
+      * admit.
+  - induction l2.
+    + simpl. rewrite app_nil_r in *. apply NoDup_element.
+      * apply IHl1. apply disjoint_empty.
+      * destruct IHl1.
+        { - apply disjoint_empty. }
+        { - unfold not. intros. inversion H0. } 
+        { - simpl. unfold not in *. intros. apply H0. destruct H1.
+            + rewrite H1. admit.
+            + 
+
+
+
+
+
+
+
+
+  intros. 
+  induction (l1 ++ l2).
+  - apply NoDup_nil.
+  - apply NoDup_element.
+    + apply IHl.
+    + unfold not. intros. induction l1.
+      * 
+
+
+
+
+
+
+
+
+
+  intros. induction l2.
+  - induction l1.
+    + simpl. apply NoDup_nil.
+    + simpl. rewrite app_nil_r in *. apply NoDup_element.
+      * apply IHl1. apply disjoint_empty.
+      * unfold not. intros. induction H. exists x. split.
+        { - simpl. left. reflexivity. }
+        { - 
+        
+        
+        
+        
+        
+        simpl. rewrite app_nil_r in IHl1. destruct IHl1.
+            + apply disjoint_empty.
+            + simpl in H0. apply H0.
+            + unfold not in H. apply H. inversion H0. 
+              * inversion n.
+                { - apply In_empty.
 
 
 
@@ -1447,6 +1787,39 @@ Qed.
 
 
 
+
+
+                 rewrite H1 in H0. rewrite app_plus in H0. Search In. apply In_app_iff in H0. destruct H0.
+                { - apply H. rewrite H1.
+
+
+              Search In. inversion H0. apply H. rewrite <- H1 in H0. inversion H0.
+                { - rewrite <- H1 in *. inversion H0. rewrite H2. apply In_empty.
+
+
+            destruct H. simpl in H0. destruct H0.
+              * rewrite H. apply 
+
+
+
+
+
+
+
+  intros. induction l1.
+  - simpl in *. induction l2.
+    + apply NoDup_nil.
+    + apply NoDup_element.
+      * apply IHl2. unfold not in *. intros. destruct H0. destruct H0. apply H0.
+      * destruct H. exists x. split.
+        { - 
+        unfold not in *. intros. apply H. exists x. split.
+        { - 
+
+
+
+  unfold not in H. destruct H. exists 
+Qed.
 
 
 
