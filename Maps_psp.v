@@ -206,8 +206,34 @@ Proof.
   apply t_update_neq. apply H.
 Qed.
 
+Lemma update_shadow : forall A (m: partial_map A) v1 v2 x,
+  m & {{ x --> v1 ; x --> v2 }} = m & {{x --> v2}}.
+Proof.
+  intros.
+  unfold update.
+  apply t_update_shadow.
+Qed.
 
+Theorem update_same : forall X v x (m : partial_map X),
+  m x = Some v ->
+  m & {{x --> v}} = m.
+Proof.
+  intros.
+  unfold update.
+  rewrite <- H.
+  apply t_update_same.
+Qed.
 
+Theorem update_permute : forall (X:Type) v1 v2 x1 x2
+                          (m : partial_map X),
+  x2 <> x1 ->
+  m & {{x2 --> v2 ; x1 --> v1}}
+  = m & {{x1 --> v1 ; x2 --> v2}}.
+Proof.
+  intros.
+  apply t_update_permute.
+  apply H.
+Qed.
 
 
 
