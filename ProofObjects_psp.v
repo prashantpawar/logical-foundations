@@ -142,19 +142,67 @@ Definition some_nat_is_even : exists n, ev n :=
   ex_intro ev 4 (ev_SS 2 (ev_SS 0 ev_0)).
 
 (* Exercise: 2 stars, optional (ex_ev_Sn) *)
-Definition ex_ev_Sn : ex (fun n => ev (S n)).
+Definition ex_ev_Sn' : ex (fun n => ev (S n)).
 Proof.
   exists 1.
   apply ev_SS.
   apply ev_0.
 Qed.
-
+Print ex_ev_Sn'.
 
 Definition ex_ev_Sn : ex (fun n => ev (S n)) :=
-  exists n: nat, ev (S n).
+  ex_intro (fun n => ev (S n)) 1 (ev_SS 0 ev_0).
 
 
+(* True and False *)
 
+Inductive True : Prop :=
+| I : True.
+
+Inductive False : Prop :=.
+
+End Props.
+
+(* Equality *)
+
+Module MyEquality.
+
+Inductive eq {X:Type} : X -> X -> Prop :=
+| eq_refl : forall x, eq x x.
+
+Notation "x = y" := (eq x y)
+                     (at level 70, no associativity)
+                     : type_scope.
+
+Check 2 = 2.
+
+Lemma four: 2 + 2 = 1 + 3.
+Proof.
+  apply eq_refl.
+Qed.
+
+Definition four' : 2 + 2 = 1 + 3 :=
+  eq_refl 4.
+
+Definition singleton : forall (X:Type) (x:X), []++[x] = x::[] :=
+  fun (X:Type) (x:X) => eq_refl [x].
+
+End MyEquality.
+
+(* Exercise: 2 stars (equality_leibniz_equality) *)
+Lemma equality__leibniz_equality : forall (X : Type) (x y: X),
+  x = y -> forall P:X->Prop, P x -> P y.
+Proof.
+  intros. rewrite <- H. apply H0.
+Qed.
+
+Lemma leibniz_equality__equality : forall (X : Type) (x y : X),
+  (forall P:X->Prop, P x -> P y) -> x = y.
+Proof.
+  intros.
+  apply H.
+  reflexivity.
+Qed.
 
 
 
