@@ -232,7 +232,13 @@ Proof.
     + apply IH.
 Qed.
 
+Inductive le (n:nat) : nat -> Prop :=
+  | le_n : le n n
+  | le_S : forall m, (le n m) -> (le n (S m)).
 
+Notation "m <= n" := (le m n).
+
+Check le_ind.
 
 
 
