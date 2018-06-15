@@ -153,10 +153,66 @@ Proof.
   apply le_S_n. apply H.
 Qed.
 
+(* Exercise: 2 stars, optional (le_Sn_n_inf) *)
+(*
+Theorem: For every n, not (S n <= n).
+Proof.
+  Lets begin by performing induction on n.
+  1. n = 0, we have to prove that (S 0 <= 0) is False that is (1 <= 0) is false, this is trivial.
+  2. For some value of n' this goal holds true for S n'.
+  That is (S (S n') <= S n') is false given (S n' <= n') is False.
+  We know that if S m <= S n is true then m <= n is true.
+  Based on this our goal can be reduced to prove that (S n' <= n') is false. Since this is our hypothesis, this is proven
+  *)
 
 
+(* Exercise: 1 star, optional (le_Sn_n) *)
 
+Theorem le_Sn_n : forall n,
+  not (S n <= n).
+Proof.
+  induction n.
+   - unfold not. intros contra. inversion contra.
+   - unfold not in *. intros. apply IHn. apply Sn_le_Sm__n_le_m. apply H.
+Qed.
 
+(* Symmetric and Antisymmetric Relations *)
+
+Definition symmetric {X:Type} (R: relation X) :=
+  forall a b : X, R a b -> R b a.
+
+(* Exercise: 2 stars, optional (le_not_symmetric) *)
+
+Theorem le_not_symmetric :
+  not (symmetric le).
+Proof.
+  unfold symmetric.
+  unfold not.
+  intros.
+  assert (1 <= 0).
+  - apply H. apply le_0_n.
+  - inversion H0.
+Qed.
+
+Definition antisymmetric {X: Type} (R: relation X) :=
+  forall a b : X, (R a b) -> (R b a) -> a = b.
+
+(* Exercise: 2 stars, optional (le_antisymmetric) *)
+
+Theorem le_antisymmetric :
+  antisymmetric le.
+Proof.
+  unfold antisymmetric.
+  intros a b Hab Hba.
+  generalize dependent a.
+  induction b.
+  - intros. inversion Hab. reflexivity.
+  - destruct a.
+    + intros. inversion Hba.
+    + intros. apply eq_S. apply IHb.
+      * apply le_S_n in Hab. apply Hab.
+      * apply le_S_n in Hba. apply Hba.
+Qed.
 
 
 
