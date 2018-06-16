@@ -214,8 +214,121 @@ Proof.
       * apply le_S_n in Hba. apply Hba.
 Qed.
 
+(* Exercise: 2 stars, optional (le_step) *)
 
+Theorem le_step : forall n m p,
+  n < m ->
+  m <= S p ->
+  n <= p.
+Proof.
+  intros n m p Hnm Hmp.
+  unfold lt in Hnm.
+  apply le_S_n. apply le_trans with m.
+  - apply Hnm.
+  - apply Hmp.
+Qed.
 
+(* Equivalence Relations *)
+Definition equivalence {X:Type} (R:relation X) :=
+  (reflexive R) /\ (symmetric R) /\ (transitive R).
+
+(* Partial Orders and Preorders *)
+Definition order {X:Type} (R: relation X) :=
+  (reflexive R) /\ (antisymmetric R) /\ (transitive R).
+
+Definition preorder {X:Type} (R: relation X) :=
+  (reflexive R) /\ (transitive R).
+
+Theorem le_order :
+  order le.
+Proof.
+  unfold order.
+  split.
+  - apply le_reflexive.
+  - split.
+    + apply le_antisymmetric.
+    + apply le_trans.
+Qed.
+
+(* Reflexive, Transitive Closure *)
+
+Inductive clos_refl_trans {A: Type} (R: relation A) : relation A :=
+  | rt_step : forall x y, R x y -> clos_refl_trans R x y
+  | rt_refl : forall x, clos_refl_trans R x x
+  | rt_trans : forall x y z,
+    clos_refl_trans R x y ->
+    clos_refl_trans R y z ->
+    clos_refl_trans R x z.
+
+Theorem next_nat_closure_is_le : forall n m,
+  (n <= m) <-> ((clos_refl_trans next_nat) n m).
+Proof.
+  intros n m. split.
+  - intros H. induction H.
+    + apply rt_refl.
+    + apply rt_trans with m.
+      * apply IHle.
+      * apply rt_step. apply nn.
+  - intros. induction H.
+    + inversion H. apply le_S. reflexivity.
+    + reflexivity.
+    + apply le_trans with y.
+      * apply IHclos_refl_trans1.
+      * apply IHclos_refl_trans2.
+Qed.
+
+Inductive clos_refl_trans_1n {A : Type}
+                             (R : relation A) (x : A)
+                             : A -> Prop :=
+  | rt1n_refl : clos_refl_trans_1n R x x
+  | rt1n_trans (y z : A) :
+      R x y -> clos_refl_trans_1n R y z ->
+      clos_refl_trans_1n R x z.
+
+Lemma rsc_R : forall (X:Type) (R:relation X) (x y : X),
+  R x y -> clos_refl_trans_1n R x y.
+Proof.
+  intros X R x y H.
+  apply rt1n_trans with y.
+  - apply H.
+  - apply rt1n_refl.
+Qed.
+
+(* Exercise: 2 stars, optional (rsc_trans) *)
+Lemma rsc_trans :
+  forall (X:Type) (R: relation X) (x y z : X),
+      clos_refl_trans_1n R x y  ->
+      clos_refl_trans_1n R y z ->
+      clos_refl_trans_1n R x z.
+Proof.
+  intros.
+  induction H.
+  - apply H0.
+  - apply rt1n_trans with y.
+    + apply H.
+    + apply IHclos_refl_trans_1n. apply H0.
+Qed.
+
+(* Exercise: 3 stars, optional (rtc_rsc_coincide) *)
+Theorem rtc_rsc_coincide :
+  forall (X:Type) (R: relation X) (x y : X),
+  clos_refl_trans R x y <-> clos_refl_trans_1n R x y.
+Proof.
+  intros X R x y. split.
+  - intros. induction H.
+    + apply rt1n_trans with y.
+      * apply H.
+      * apply rt1n_refl.
+    + apply rt1n_refl.
+    + apply rsc_trans with y.
+      * apply IHclos_refl_trans1.
+      * apply IHclos_refl_trans2.
+   - intros. induction H.
+    + apply rt_refl.
+    + apply rt_trans with y.
+      * apply rt_step. apply H.
+      * apply IHclos_refl_trans_1n.
+Qed.
 
 
 
