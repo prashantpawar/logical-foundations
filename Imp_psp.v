@@ -455,27 +455,6 @@ Qed.
   | BAnd b1 b2 => BAnd b1 b2
   *)
 
-(*
-Reserved Notation "e '|\/|' n" (at level 55, left associativity).
-
-Inductive bevalR: bexp -> bool -> Prop :=
-  | E_BTrue :  BTrue |\/| true
-  | E_BFalse : BFalse |\/| false
-  | E_BEq : forall (a1 a2 : aexp) (n m : nat),
-      (a1 \\ n) -> (a2 \\ m)  ->
-      (BEq a1 a2) |\/| beq_nat n m
-  | E_BLe : forall (a1 a2 : aexp) (n m : nat),
-      (a1 \\ n) -> (a2 \\ m) ->
-      (BLe a1 a2) |\/| leb n m
-  | E_BNot : forall (b : bexp) (bv : bool),
-      (b |\/| bv) ->
-      (BNot b) |\/| negb bv
-  | E_BAnd : forall (b1 b2 : bexp) (bv1 bv2 : bool),
-      (b1 |\/| bv1) -> (b2 |\/| bv2) ->
-      (BAnd b1 b2) |\/| andb bv1 bv2
-  where "e  '|\/|' n" := (bevalR e n) : type_scope.
-*)
-
 Reserved Notation "e '|\/|' n" (at level 55, left associativity).
 Inductive bevalR : bexp -> bool -> Prop :=
   | E_BTrue : BTrue |\/| true
@@ -605,12 +584,254 @@ Inductive aevalR : aexp -> nat -> Prop :=
 
 End aevalR_extended.
 
- 
+(* Expressions with Variables *)
+
+Definition state := total_map nat.
+
+Inductive aexp : Type :=
+  | ANum : nat -> aexp
+  | AId : string -> aexp (* <-- NEW *)
+  | APlus : aexp -> aexp -> aexp
+  | AMinus : aexp -> aexp -> aexp
+  | AMult : aexp -> aexp -> aexp.
+
+Definition W : string := "W".
+Definition X : string := "X".
+Definition Y : string := "Y".
+Definition Z : string := "Z".
+
+Inductive bexp : Type :=
+  | BTrue : bexp
+  | BFalse : bexp
+  | BEq : aexp -> aexp -> bexp
+  | BLe : aexp -> aexp -> bexp
+  | BNot : bexp -> bexp
+  | BAnd : bexp -> bexp -> bexp.
 
 
 
+(* Notations *)
+
+Coercion AId : string >-> aexp.
+Coercion ANum : nat >-> aexp.
+Definition bool_to_bexp (b: bool) : bexp :=
+  if b then BTrue else BFalse.
+Coercion bool_to_bexp : bool >-> bexp.
+
+Bind Scope aexp_scope with aexp.
+Infix "+" := APlus : aexp_scope.
+Infix "-" := AMinus : aexp_scope.
+Infix "*" := AMult : aexp_scope.
+Bind Scope bexp_scope with bexp.
+Infix "<=" := BLe : bexp_scope.
+Infix "=" := BEq : bexp_scope.
+Infix "&&" := BAnd : bexp_scope.
+Notation "'!' b" := (BNot b) (at level 60) : bexp_scope.
 
 
+(* Evaluation *)
+Fixpoint aeval (st : state) (a : aexp) : nat :=
+  match a with
+  | ANum n => n
+  | AId x => st x (* <---- NEW *)
+  | APlus a1 a2 => (aeval st a1) + (aeval st a2)
+  | AMinus a1 a2 => (aeval st a1) - (aeval st a2)
+  | AMult a1 a2 => (aeval st a1) * (aeval st a2)
+  end.
+
+Fixpoint beval (st : state) (b : bexp) : bool :=
+  match b with
+  | BTrue => true
+  | BFalse => false
+  | BEq a1 a2 => beq_nat (aeval st a1) (aeval st a2)
+  | BLe a1 a2 => leb (aeval st a1) (aeval st a2)
+  | BNot b => negb (beval st b)
+  | BAnd b1 b2 => andb (beval st b1) (beval st b2)
+  end.
+
+Notation "{ a --> x }" :=
+  (t_update { --> 0 } a x) (at level 0).
+Notation "{ a --> x ; b --> y }" :=
+  (t_update ({a --> x}) b y) (at level 0).
+Notation "{ a --> x ; b --> y ; c --> z }" :=
+  (t_update ({a --> x ; b --> y}) c z) (at level 0).
+Notation "{ a --> x ; b --> y ; c --> z ; d --> t }" :=
+  (t_update ({a --> x ; b --> y ; c --> z}) d t) (at level 0).
+Notation "{ a --> x ; b --> y ; c --> z ; d --> t ; e --> u }" :=
+  (t_update ({a --> x ; b --> y ; c --> z ; d --> t}) e u) (at level 0).
+Notation "{ a --> x ; b --> y ; c --> z ; d --> t ; e --> u ; f -- v }" :=
+  (t_update ({a --> x ; b --> y ; c --> z ; d --> t ; e --> u}) f v) (at level 0).
+
+Example aexpl :
+  aeval { X --> 5 } (3 + (X * 2))
+  = 13.
+Proof.
+  reflexivity.
+Qed.
+
+Example bexpl : 
+  beval { X --> 5 } (true && !(X <= 4))
+  = true.
+Proof.
+  reflexivity.
+Qed.
+
+(* Commands *)
+
+(* Syntax *)
+
+Inductive com : Type :=
+  | CSkip : com
+  | CAss : string -> aexp -> com
+  | CSeq : com -> com -> com
+  | CIf : bexp -> com -> com -> com
+  | CWhile : bexp -> com -> com.
+
+Bind Scope com_scope with com.
+Notation "'SKIP'" :=
+   CSkip : com_scope.
+Notation "x '::=' a" :=
+  (CAss x a) (at level 60) : com_scope.
+Notation "c1 ;; c2" :=
+  (CSeq c1 c2) (at level 80, right associativity) : com_scope.
+Notation "'WHILE' b 'DO' c 'END'" :=
+  (CWhile b c) (at level 80, right associativity) : com_scope.
+Notation "'IFB' c1 'THEN' c2 'ELSE' c3 'FI'" :=
+  (CIf c1 c2 c3) (at level 80, right associativity) : com_scope.
+
+Open Scope com_scope.
+
+Definition fact_in_coq : com :=
+  Z ::= X;;
+  Y ::= 1;;
+  WHILE ! (Z = 0) DO
+    Y ::= Y * Z;;
+    Z ::= Z - 1
+  END.
+
+(* More Examples *)
+
+Definition plus2 : com :=
+  X ::= X + 2.
+
+Definition XtimesYinZ : com :=
+  Z ::= X * Y.
+
+Definition subtract_slowly_body : com :=
+  Z ::= Z - 1 ;;
+  X ::= X - 1.
+
+(* Loops *)
+
+Definition subtract_slowly : com :=
+  WHILE ! (X = 0) DO
+    subtract_slowly_body
+  END.
+
+Definition subtract_3_from_5_slowly : com :=
+  X ::= 3;;
+  Y ::= 5;;
+  subtract_slowly.
+
+(* An infinite Loop *)
+Definition loop : com :=
+  WHILE true DO
+    SKIP
+  END.
+
+(* Evaluating Commands *)
+
+Fixpoint ceval_fun_no_while (st : state) (c : com) 
+                           : state :=
+  match c with
+  | SKIP => st
+  | x ::= a1 =>
+      st & { x --> (aeval st a1)}
+  | c1 ;; c2 =>
+      let st' := ceval_fun_no_while st c1 in
+      ceval_fun_no_while st' c2
+  | IFB b THEN c1 ELSE c2 FI =>
+      if (beval st b)
+        then ceval_fun_no_while st c1
+        else ceval_fun_no_while st c2
+  | WHILE b DO c END =>
+      st (* Bogus *)
+  end.
+
+Reserved Notation "c1 '/' st '\\' st'"
+                  (at level 40, st at level 39).
+
+Inductive ceval : com -> state -> state -> Prop :=
+  | E_Skip : forall st,
+      SKIP / st \\ st
+  | E_Ass  : forall st a1 n x,
+      aeval st a1 = n ->
+      (x ::= a1) / st \\ st & { x --> n }
+  | E_Seq : forall c1 c2 st st' st'',
+      c1 / st  \\ st' ->
+      c2 / st' \\ st'' ->
+      (c1 ;; c2) / st \\ st''
+  | E_IfTrue : forall st st' b c1 c2,
+      beval st b = true ->
+      c1 / st \\ st' ->
+      (IFB b THEN c1 ELSE c2 FI) / st \\ st'
+  | E_IfFalse : forall st st' b c1 c2,
+      beval st b = false ->
+      c2 / st \\ st' ->
+      (IFB b THEN c1 ELSE c2 FI) / st \\ st'
+  | E_WhileFalse : forall b st c,
+      beval st b = false ->
+      (WHILE b DO c END) / st \\ st
+  | E_WhileTrue : forall st st' st'' b c,
+      beval st b = true ->
+      c / st \\ st' ->
+      (WHILE b DO c END) / st' \\ st'' ->
+      (WHILE b DO c END) / st \\ st''
+
+  where "c1 '/' st '\\' st'" := (ceval c1 st st').
+
+Example ceval_example1:
+  (X ::= 2;;
+   IFB X <= 1
+    THEN Y ::= 3
+    ELSE Z ::= 4
+   FI)
+ / { --> 0 } \\ { X --> 2 ; Z --> 4 }.
+Proof.
+  apply E_Seq with { X --> 2}.
+  - apply E_Ass. reflexivity.
+  - apply E_IfFalse.
+    + reflexivity.
+    + apply E_Ass. reflexivity.
+Qed.
+
+(* Exercise: 2 stars (ceval_example2) *)
+
+Example ceval_example2:
+  (X ::= 0;; Y ::= 1;; Z ::= 2) / { --> 0 } \\
+  { X --> 0; Y --> 1 ; Z --> 2}.
+Proof.
+  apply E_Seq with { X --> 0}.
+  - apply E_Ass. reflexivity.
+  - apply E_Seq with { X --> 0 ; Y --> 1}.
+    + apply E_Ass. reflexivity.
+    + apply E_Ass. reflexivity.
+Qed.
+
+(* Exercise: 3 stars, optional (pup_to_n) *)
+
+Definition pup_to_n : com :=
+  (Y ::= 0;; (* SUM *)
+  W ::= 0;; (* COUNT *)
+  WHILE W <= X DO
+    W ::= W - 1;;
+    Y ::= Y + W
+  END).
+
+Definition pup_to_2_ceval :
+  pup_to_n / { X --> 2 }
+    \\ { X --> 2 ; Y --> 0 ; Y --> 2 ; X --> 1 ; Y --> 3 ; X --> 0 }.
+    
 
 
 
