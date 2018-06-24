@@ -649,18 +649,22 @@ Fixpoint beval (st : state) (b : bexp) : bool :=
   | BAnd b1 b2 => andb (beval st b1) (beval st b2)
   end.
 
-Notation "{ a --> x }" :=
+Notation "{ a --> x }" := 
   (t_update { --> 0 } a x) (at level 0).
-Notation "{ a --> x ; b --> y }" :=
-  (t_update ({a --> x}) b y) (at level 0).
-Notation "{ a --> x ; b --> y ; c --> z }" :=
-  (t_update ({a --> x ; b --> y}) c z) (at level 0).
-Notation "{ a --> x ; b --> y ; c --> z ; d --> t }" :=
-  (t_update ({a --> x ; b --> y ; c --> z}) d t) (at level 0).
+Notation "{ a --> x ; b --> y }" := 
+  (t_update ({ a --> x }) b y) (at level 0).
+Notation "{ a --> x ; b --> y ; c --> z }" := 
+  (t_update ({ a --> x ; b --> y }) c z) (at level 0). 
+Notation "{ a --> x ; b --> y ; c --> z ; d --> t }" := 
+  (t_update ({ a --> x ; b --> y ; c --> z }) d t) (at level 0).
 Notation "{ a --> x ; b --> y ; c --> z ; d --> t ; e --> u }" :=
-  (t_update ({a --> x ; b --> y ; c --> z ; d --> t}) e u) (at level 0).
-Notation "{ a --> x ; b --> y ; c --> z ; d --> t ; e --> u ; f -- v }" :=
-  (t_update ({a --> x ; b --> y ; c --> z ; d --> t ; e --> u}) f v) (at level 0).
+  (t_update ({ a --> x ; b --> y ; c --> z ; d --> t }) e u) (at level 0).
+Notation "{ a --> x ; b --> y ; c --> z ; d --> t ; e --> u ; f --> v }" :=
+  (t_update ({ a --> x ; b --> y ; c --> z ; d --> t ; e --> u }) f v) (at level 0).
+Notation "{ a --> x ; b --> y ; c --> z ; d --> t ; e --> u ; f --> v ; g --> w }" :=
+  (t_update ({ a --> x ; b --> y ; c --> z ; d --> t ; e --> u ; f --> v}) g w) (at level 0).
+Notation "{ a --> x ; b --> y ; c --> z ; d --> t ; e --> u ; f --> v ; g --> w ; h --> s }" :=
+  (t_update ({ a --> x ; b --> y ; c --> z ; d --> t ; e --> u ; f --> v ; g --> w}) h s) (at level 0).
 
 Example aexpl :
   aeval { X --> 5 } (3 + (X * 2))
@@ -822,16 +826,60 @@ Qed.
 
 Definition pup_to_n : com :=
   (Y ::= 0;; (* SUM *)
-  W ::= 0;; (* COUNT *)
-  WHILE W <= X DO
-    W ::= W - 1;;
-    Y ::= Y + W
+  WHILE !(0 = X) DO
+    Y ::= Y + X;;
+    X ::= X - 1
   END).
 
 Definition pup_to_2_ceval :
   pup_to_n / { X --> 2 }
     \\ { X --> 2 ; Y --> 0 ; Y --> 2 ; X --> 1 ; Y --> 3 ; X --> 0 }.
-    
+Proof.
+  unfold pup_to_n.
+  apply E_Seq with {X --> 2; Y --> 0}.
+  - apply E_Ass. reflexivity.
+  - apply E_WhileTrue with {X --> 2; Y --> 0; Y --> 2; X --> 1}.
+    + reflexivity.
+    + apply E_Seq with {X --> 2; Y --> 0; Y --> 2}.
+      * apply E_Ass. reflexivity.
+      * apply E_Ass. reflexivity.
+    + apply E_WhileTrue with 
+        {X --> 2; Y --> 0; Y --> 2; X --> 1; Y --> 3; X --> 0}.
+      * reflexivity.
+      * apply E_Seq with {X --> 2; Y --> 0; Y --> 2; X --> 1; Y --> 3}.
+        { - apply E_Ass. reflexivity. }
+        { - apply E_Ass. reflexivity. }
+      * apply E_WhileFalse. reflexivity.
+Qed.
+
+(* Determination of Evaluation *)
+
+Theorem ceval_deterministic : forall c st st1 st2,
+  c / st \\ st1 ->
+  c / st \\ st2 ->
+  st1 = st2.
+Proof.
+  intros c st st1 st2 H1 H2.
+  generalize dependent st2.
+  induction H1;
+    intros st2 H2; inversion H2; subst.
+  - (* E_Skip *) reflexivity.
+  - (* E_Ass *) reflexivity.
+  - (* E_Seq *) assert (st' = st'0) as EQ1.
+    { apply IHceval1. apply H1. }
+    apply IHceval2. rewrite EQ1. apply H5.
+  - (* E_IfTrue b1 is true *) apply IHceval. apply H8.
+  - (* E_IfTrue b1 is false *) rewrite H in H7. inversion H7.
+  - (* E_IfFalse b1 is true *) rewrite H in H7. inversion H7.
+  - (* E_IfFalse b1 is false *) apply IHceval. assumption.
+  - (* E_WhileFalse b1 is false *) reflexivity.
+  - (* E_WhileFalse b1 is true *) rewrite H in H3. inversion H3.
+  - (* E_WhileTrue b1 is false *) rewrite H in H5. inversion H5.
+  - (* E_WhileTrue b1 is true *) apply IHceval2.
+    assert (st' = st'0).
+    { apply IHceval1. apply H4. }
+    rewrite H0. apply H7.
+Qed.
 
 
 
