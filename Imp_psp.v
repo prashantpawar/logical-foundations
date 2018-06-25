@@ -375,14 +375,6 @@ Qed.
 (* Evaluation as a Relation *)
 Module aevalR_first_try.
 
-(* 
-Inductive aexp : Type :=
-  | ANum : nat -> aexp
-  | APlus : aexp -> aexp -> aexp
-  | AMinus : aexp -> aexp -> aexp
-  | AMult : aexp -> aexp -> aexp.
-  *)
-
 Inductive aevalR : aexp -> nat -> Prop :=
   | E_ANum : forall (n : nat),
       aevalR (ANum n) n
@@ -437,23 +429,6 @@ Proof.
 Qed.
 
 (* Exercise: 3 stars (bevalR) *)
-
-(*
-  | BTrue => true
-  | BFalse => false
-  | BEq a1 a2 => beq_nat (aeval a1) (aeval a2)
-  | BLe a1 a2 => leb (aeval a1) (aeval a2)
-  | BNot b1 => negb (beval b1)
-  | BAnd b1 b2 => andb (beval b1) (beval b2)
-
-
-  | BTrue => BTrue
-  | BFalse => BFalse
-  | BEq a1 a2 => BEq (optimize_Oplus a1) (optimize_Oplus a2)
-  | BLe a1 a2 => BLe (optimize_Oplus a1) (optimize_Oplus a2)
-  | BNot b1 => BNot b1
-  | BAnd b1 b2 => BAnd b1 b2
-  *)
 
 Reserved Notation "e '|\/|' n" (at level 55, left associativity).
 Inductive bevalR : bexp -> bool -> Prop :=
@@ -881,11 +856,96 @@ Proof.
     rewrite H0. apply H7.
 Qed.
 
+(* Reasoning about Imp programs *)
 
+Theorem plus2_spec : forall st n st',
+    st X = n ->
+    plus2 / st \\ st' ->
+    st' X = (n + 2).
+Proof.
+  intros st n st' H1 H2.
+  inversion H2. subst. clear H2. simpl.
+  apply t_update_eq.
+Qed.
 
+(* Exercise: 3 stars, recommended (XtimesYinZ_spec) *)
 
+Theorem XtimesYinZ_spec : forall st n m st',
+  st X = n ->
+  st Y = m ->
+  XtimesYinZ / st \\ st' ->
+  st' Z = (n * m).
+Proof.
+  intros st n m st' H1 H2 Heq.
+  inversion Heq. subst. clear Heq. simpl.
+  apply t_update_eq.
+Qed.
 
+(* Exercise: 3 stars, recommended (loop_never_stops) *)
+Theorem loop_never_stops : forall st st',
+  ~(loop / st \\ st').
+Proof.
+  intros st st' contra. unfold loop in contra.
+  remember (WHILE true DO SKIP END) as loopdef
+           eqn:Heqloopdef.
+  induction contra;
+    try (inversion Heqloopdef).
+  - subst. inversion H.
+  - subst. apply IHcontra2. apply Heqloopdef.
+Qed.
 
+(* Exercise: 3 stars (no_whiles_eqv) *)
+Fixpoint no_whiles (c : com) : bool :=
+  match c with
+  | SKIP => true
+  | _ ::= _ => true
+  | c1 ;; c2 =>
+      andb (no_whiles c1) (no_whiles c2)
+  | IFB _ THEN ct ELSE cf FI =>
+      andb (no_whiles ct) (no_whiles cf)
+  | WHILE _ DO _ END =>
+      false
+  end.
+
+Inductive no_whilesR : com -> Prop :=
+  | NoW_Skip :
+      no_whilesR SKIP 
+  | NoW_Ass : forall X n,
+      no_whilesR (X ::= n)
+  | NoW_Seq : forall c1 c2,
+      no_whilesR c1 ->
+      no_whilesR c2 ->
+      no_whilesR (c1 ;; c2)
+  | NoW_If : forall b ct cf,
+      no_whilesR ct ->
+      no_whilesR cf ->
+      no_whilesR (IFB b THEN ct ELSE cf FI).
+
+Theorem no_whiles_eqv:
+  forall c, no_whiles c = true <-> no_whilesR c.
+Proof.
+  split.
+  - intros.
+    induction c.
+    + simpl. apply NoW_Skip.
+    + simpl. apply NoW_Ass.
+    + simpl. simpl in H. apply andb_true_iff in H. destruct H. apply NoW_Seq.
+      * apply IHc1. apply H.
+      * apply IHc2. apply H0.
+    + simpl in H. apply andb_true_iff in H. destruct H. apply NoW_If.
+      * apply IHc1. apply H.
+      * apply IHc2. apply H0.
+    + simpl in H. inversion H.
+  - intros. induction c;
+      try (reflexivity).
+      + simpl. apply andb_true_iff. inversion H. split.
+        * apply IHc1. assumption.
+        * apply IHc2. assumption.
+      + simpl. apply andb_true_iff. inversion H. split.
+        * apply IHc1. assumption.
+        * apply IHc2. assumption.
+      + inversion H.
+Qed.
 
 
 
