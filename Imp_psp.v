@@ -1030,7 +1030,8 @@ Inductive sinstr : Type :=
   | SMinus : sinstr
   | SMult : sinstr.
 
-Definition hd0 := hd 0.
+Definition first_el (l : list nat) : nat := hd 0 l.
+Definition second_el (l : list nat) : nat := first_el (tl l).
 
 Definition pop2 {X:Type} (x : list X) := tl (tl x).
 
@@ -1039,13 +1040,12 @@ Fixpoint s_execute (st : state) (stack : list nat)
                  : list nat :=
   match prog with
   | nil => stack
-  | i :: t =>
-              match i with
+  | i :: t => match i with
               | SPush n => s_execute st (n :: stack) t
               | SLoad x => s_execute st ((st x) :: stack) t
-              | SPlus => s_execute st ((hd0 (tl stack) + hd0 stack) :: (pop2 stack)) t
-              | SMinus => s_execute st ((hd0 (tl stack) - hd0 stack) :: (pop2 stack)) t
-              | SMult => s_execute st ((hd0 (tl stack) * hd0 stack) :: (pop2 stack)) t
+              | SPlus => s_execute st ((second_el stack + first_el stack) :: (pop2 stack)) t
+              | SMinus => s_execute st ((second_el stack - first_el stack) :: (pop2 stack)) t
+              | SMult => s_execute st ((second_el stack * first_el stack) :: (pop2 stack)) t
               end
   end.
 
