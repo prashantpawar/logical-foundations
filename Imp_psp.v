@@ -947,6 +947,80 @@ Proof.
       + inversion H.
 Qed.
 
+(* Exercise: 4 stars (no_whiles_terminating) *)
+Theorem no_whiles_terminating : forall c (st st':state),
+  no_whilesR c->
+  exists st', c / st \\ st'.
+Proof.
+  intros.
+  generalize dependent st.
+  induction c; intros.
+  - (* CSkip *) exists st. apply E_Skip.
+  - (* CAss *) exists (st & { s --> (aeval st a) }). apply E_Ass. reflexivity.
+  - (* CSeq *) inversion H. 
+    apply IHc1 with st in H2. inversion H2. subst.
+    apply IHc2 with x in H3. inversion H3. exists x0.
+    apply E_Seq with x.
+    + apply H4.
+    + apply H0.
+  - (* CIf *)
+      induction b.
+      + (* BTrue *) inversion H. subst.
+        apply IHc1 with st in H2. inversion H2.
+        exists x. apply E_IfTrue.
+          * reflexivity.
+          * apply H0.
+      + (* BFalse *) inversion H. subst.
+        apply IHc2 with st in H4. inversion H4.
+        exists x. apply E_IfFalse.
+          * reflexivity.
+          * apply H0.
+      + (* BEq *) inversion H. subst.
+        apply IHc1 with st in H2. inversion H2.
+        apply IHc2 with st in H4. inversion H4.
+        remember (beq_nat (aeval st a) (aeval st a0)) as A.
+        destruct A.
+          * exists x. apply E_IfTrue.
+            { unfold beval. rewrite HeqA. reflexivity. }
+            { apply H0. }
+          * exists x0. apply E_IfFalse.
+            { unfold beval. rewrite HeqA. reflexivity. }
+            { apply H1. }
+       + (* BLe *) inversion H. subst.
+          apply IHc1 with st in H2. inversion H2.
+          apply IHc2 with st in H4. inversion H4.
+          remember (leb (aeval st a) (aeval st a0)) as A.
+          destruct A.
+          * exists x. apply E_IfTrue.
+            { unfold beval. rewrite HeqA. reflexivity. }
+            { apply H0. }
+          * exists x0. apply E_IfFalse.
+            { unfold beval. rewrite HeqA. reflexivity. }
+            { apply H1. }
+        + (* BNot *) inversion H. subst.
+          apply IHc1 with st in H2. inversion H2.
+          apply IHc2 with st in H4. inversion H4.
+          remember (beval st (! b)) as A. destruct A.
+          * exists x. apply E_IfTrue.
+            { rewrite HeqA. reflexivity. }
+            { apply H0. }
+          * exists x0. apply E_IfFalse.
+            { rewrite HeqA. reflexivity. }
+            { apply H1. }
+        + (* BAnd *) inversion H. subst.
+          apply IHc1 with st in H2. inversion H2.
+          apply IHc2 with st in H4. inversion H4.
+          remember (beval st (b1 && b2)) as A. destruct A.
+          * exists x. apply E_IfTrue.
+            { rewrite HeqA. reflexivity. }
+            { apply H0. }
+          * exists x0. apply E_IfFalse.
+            { rewrite HeqA. reflexivity. }
+            { apply H1. }
+  - (* CWhile *) inversion H.
+Qed.
+
+
 
 
 
