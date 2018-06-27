@@ -1020,6 +1020,80 @@ Proof.
   - (* CWhile *) inversion H.
 Qed.
 
+(* Additional Exercises *)
+
+(* Exercise: 3 stars (stack_compiler) *)
+Inductive sinstr : Type :=
+  | SPush : nat -> sinstr
+  | SLoad : string -> sinstr
+  | SPlus : sinstr
+  | SMinus : sinstr
+  | SMult : sinstr.
+
+Definition hd0 := hd 0.
+
+Definition pop2 {X:Type} (x : list X) := tl (tl x).
+
+Fixpoint s_execute (st : state) (stack : list nat)
+                   (prog : list sinstr)
+                 : list nat :=
+  match prog with
+  | nil => stack
+  | i :: t =>
+              match i with
+              | SPush n => s_execute st (n :: stack) t
+              | SLoad x => s_execute st ((st x) :: stack) t
+              | SPlus => s_execute st ((hd0 (tl stack) + hd0 stack) :: (pop2 stack)) t
+              | SMinus => s_execute st ((hd0 (tl stack) - hd0 stack) :: (pop2 stack)) t
+              | SMult => s_execute st ((hd0 (tl stack) * hd0 stack) :: (pop2 stack)) t
+              end
+  end.
+
+Example s_execute1 :
+  s_execute { --> 0 } []
+    [SPush 5; SPush 3; SPush 1; SMinus] = [2; 5].
+Proof.
+  unfold s_execute. reflexivity.
+Qed.
+
+Example s_execute2 :
+  s_execute { X --> 3 } [3;4]
+    [SPush 4; SLoad X; SMult; SPlus]
+  = [15; 4].
+Proof.
+  unfold s_execute. reflexivity.
+Qed.
+
+Fixpoint s_compile (e : aexp) : list sinstr :=
+  match e with
+  | ANum n => [SPush n]
+  | AId x => [SLoad x]
+  | APlus a1 a2 => s_compile a1 ++ s_compile a2 ++ [SPlus]
+  | AMinus a1 a2 => s_compile a1 ++ s_compile a2 ++ [SMinus]
+  | AMult a1 a2 => s_compile a1 ++ s_compile a2 ++ [SMult]
+  end.
+
+Example s_compile1 :
+  s_compile (X - (2 * Y))
+  = [SLoad X; SPush 2; SLoad Y; SMult; SMinus].
+Proof.
+  unfold s_compile. reflexivity.
+Qed.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
