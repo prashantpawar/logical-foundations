@@ -4,7 +4,6 @@ Require Import Coq.Arith.Arith.
 Require Import Coq.Arith.EqNat.
 Require Import Coq.omega.Omega.
 Require Import Coq.Lists.List.
-Require Import Coq.omega.Omega.
 Import ListNotations.
 Require Import Maps.
 
@@ -1040,13 +1039,17 @@ Fixpoint s_execute (st : state) (stack : list nat)
                  : list nat :=
   match prog with
   | nil => stack
-  | i :: t => match i with
-              | SPush n => s_execute st (n :: stack) t
-              | SLoad x => s_execute st ((st x) :: stack) t
-              | SPlus => s_execute st ((second_el stack + first_el stack) :: (pop2 stack)) t
-              | SMinus => s_execute st ((second_el stack - first_el stack) :: (pop2 stack)) t
-              | SMult => s_execute st ((second_el stack * first_el stack) :: (pop2 stack)) t
-              end
+  | i :: t =>
+      match (i,stack) with
+      | (SPush n, _)  => s_execute st (n :: stack) t
+      | (SLoad x, _) => s_execute st ((st x) :: stack) t
+      | (SPlus, a::b::stack') => s_execute st ((b + a) :: stack') t
+      | (SPlus, _) => stack
+      | (SMinus, a::b::stack') => s_execute st ((b - a) :: stack') t
+      | (SMinus, _) => stack
+      | (SMult, a::b::stack') => s_execute st ((b * a) :: stack') t
+      | (SMult, _) => stack
+      end
   end.
 
 Example s_execute1 :
@@ -1064,13 +1067,21 @@ Proof.
   unfold s_execute. reflexivity.
 Qed.
 
+Example s_execute3 :
+  s_execute { --> 0 } [3;4]
+    [SMult; SPlus; SMinus]
+  = [12].
+Proof.
+  unfold s_execute. reflexivity.
+Qed.
+
 Fixpoint s_compile (e : aexp) : list sinstr :=
   match e with
   | ANum n => [SPush n]
   | AId x => [SLoad x]
-  | APlus a1 a2 => s_compile a1 ++ s_compile a2 ++ [SPlus]
-  | AMinus a1 a2 => s_compile a1 ++ s_compile a2 ++ [SMinus]
-  | AMult a1 a2 => s_compile a1 ++ s_compile a2 ++ [SMult]
+  | APlus a1 a2 => (s_compile a1) ++ (s_compile a2) ++ [SPlus]
+  | AMinus a1 a2 => (s_compile a1) ++ (s_compile a2) ++ [SMinus]
+  | AMult a1 a2 => (s_compile a1) ++ (s_compile a2) ++ [SMult]
   end.
 
 Example s_compile1 :
@@ -1080,8 +1091,207 @@ Proof.
   unfold s_compile. reflexivity.
 Qed.
 
+(* Exercise: 4 stars, advanced (stack_compiler_correct) *)
+Lemma app_plus : forall T x (l : list T),
+  x :: l = [x] ++ l.
+Proof.
+  reflexivity.
+Qed.
+
+Lemma s_execute_concat_program : 
+  forall (st : state) (prog1 prog2 : list sinstr) (l: list nat),
+  s_execute st l (prog1 ++ prog2) = s_execute st (s_execute st l prog1) prog2.
+Proof.
+  intros st.
+  induction prog1.
+  - (* prog1 = [] *) intros. reflexivity.
+  - (* prog1 = a :: prog1 *) intros. rewrite app_plus. rewrite app_assoc_reverse.
+    destruct a.
+    + (* SPush n *) apply IHprog1.
+    + (* SLoad s *) apply IHprog1.
+    + (* SPlus *) Admitted.
+
+Lemma s_compile_correct_l : forall (st : state) (e : aexp) (l: list nat),
+  s_execute st l (s_compile e) = aeval st e :: l.
+Proof.
+  intros.
+  generalize dependent l.
+  induction e; intros.
+  - (* ANum *) reflexivity.
+  - (* AId *) reflexivity.
+  - (* APlus *) simpl.
+    rewrite s_execute_concat_program. rewrite IHe1.
+    rewrite s_execute_concat_program. rewrite IHe2. reflexivity.
+  - (* AMinus *) simpl.
+    rewrite s_execute_concat_program. rewrite IHe1.
+    rewrite s_execute_concat_program. rewrite IHe2. reflexivity.
+  - (* AMult *) simpl.
+    rewrite s_execute_concat_program. rewrite IHe1.
+    rewrite s_execute_concat_program. rewrite IHe2. reflexivity.
+Qed.
+
+Theorem s_compile_correct : forall (st : state) (e : aexp),
+  s_execute st [] (s_compile e) = [ aeval st e ].
+Proof.
+  intros.
+  apply s_compile_correct_l.
+Qed.
+
+(* Exercise: 3 stars, optional (short circuit) *)
+
+Fixpoint beval_short_circuit (st : state) (b : bexp) : bool :=
+  match b with
+  | BTrue => true
+  | BFalse => false
+  | BEq a1 a2 => beq_nat (aeval st a1) (aeval st a2)
+  | BLe a1 a2 => leb (aeval st a1) (aeval st a2)
+  | BNot b => negb (beval_short_circuit st b)
+  | BAnd BFalse b => false
+  | BAnd b1 b2 => andb (beval_short_circuit st b1) (beval_short_circuit st b2)
+  end.
+
+Example bexp_shortcut_1 : 
+  beval { X --> 5 } (false && !(X <= 4))
+  = false.
+Proof.
+  reflexivity.
+Qed.
+
+Theorem beval_short_circuit_correct : forall (st : state) (b : bexp),
+  beval st b = beval_short_circuit st b.
+Proof.
+  induction b;
+    try (reflexivity).
+  - simpl. rewrite IHb. reflexivity.
+  - simpl. destruct b1; 
+            try (reflexivity);
+            try (rewrite IHb2; reflexivity);
+            try (rewrite IHb1; rewrite IHb2; reflexivity).
+Qed.
+
+Module BreakImp.
+
+(* Exercise: 4 stars, advanced (break_imp) *)
+
+Inductive com : Type :=
+  | CSkip : com
+  | CBreak : com (* <-- new *)
+  | CAss : string -> aexp -> com
+  | CSeq : com -> com -> com
+  | CIf : bexp -> com -> com -> com
+  | CWhile : bexp -> com -> com.
+
+Notation "'SKIP'" :=
+  CSkip.
+Notation "'BREAK'" :=
+  CBreak.
+Notation "x '::=' a" :=
+  (CAss x a) (at level 60).
+Notation "c1 ;; c2" :=
+  (CSeq c1 c2) (at level 80, right associativity).
+Notation "'WHILE' b 'DO' c 'END'" :=
+  (CWhile b c) (at level 80, right associativity).
+Notation "'IFB' c1 'THEN' c2 'ELSE' c3 'FI'" :=
+  (CIf c1 c2 c3) (at level 80, right associativity).
 
 
+Inductive result : Type :=
+  | SContinue : result
+  | SBreak : result.
+
+Reserved Notation "c1 '/' st '\\' s '/' st'"
+                  (at level 40, st, s at level 39).
+
+Inductive ceval : com -> state -> result -> state -> Prop :=
+  | E_Skip : forall st,
+      SKIP / st \\ SContinue / st
+  | E_Break : forall st,
+      BREAK / st \\ SBreak / st
+  | E_Ass : forall st a1 n x,
+      aeval st a1 = n ->
+     (x ::= a1) / st \\ SContinue / st & { x --> n }
+  | E_Seq_Break : forall c1 c2 st st',
+      c1 / st \\ SBreak / st' ->
+      (c1 ;; c2) / st \\ SBreak / st'
+  | E_Seq_Continue : forall c1 c2 st st' st'',
+      c1 / st \\ SContinue / st' ->
+      c1 / st \\ SContinue / st' ->
+      (c1 ;; c2) / st \\ SContinue / st''
+  | E_IfTrue_Break : forall st st' b c1 c2,
+      beval st b = true ->
+      c1 / st \\ SBreak / st' ->
+      (IFB b THEN c1 ELSE c2 FI) / st \\ SBreak / st'
+  | E_IfTrue_Continue : forall st st' b c1 c2,
+      beval st b = true ->
+      c1 / st \\ SContinue / st' ->
+      (IFB b THEN c1 ELSE c2 FI) / st \\ SContinue / st'
+  | E_IfFalse_Break : forall st st' b c1 c2,
+      beval st b = false ->
+      c2 / st \\ SBreak / st' ->
+      (IFB b THEN c1 ELSE c2 FI) / st \\ SBreak / st'
+  | E_IfFalse_Continue : forall st st' b c1 c2,
+      beval st b = false ->
+      c2 / st \\ SContinue / st' ->
+      (IFB b THEN c1 ELSE c2 FI) / st \\ SContinue / st'
+  | E_WhileFalse : forall b c st st',
+      beval st b = false ->
+      (WHILE b DO c END) / st \\ SContinue / st'
+  | E_WhileTrue_Break : forall st st' b c,
+      beval st b = true ->
+      c / st \\ SBreak / st' ->
+      (WHILE b DO c END) / st \\ SContinue / st
+  | E_WhileTrue_Continue : forall st st' st'' b c,
+      beval st b = true ->
+      c / st \\ SContinue / st' ->
+      (WHILE b DO c END) / st' \\ SContinue / st'' ->
+      (WHILE b DO c END) / st \\ SContinue / st''
+
+where "c1 '/' st '\\' s '/' st'" := (ceval c1 st s st').
+
+Definition W : string := "W".
+Definition X : string := "X".
+Definition Y : string := "Y".
+Definition Z : string := "Z".
+
+Example ceval_example2:
+    (X ::= 2;;
+     IFB X <= 1
+       THEN Y ::= 3
+       ELSE Z ::= 4
+     FI)
+   / { --> 0 } \\ SContinue / { X --> 2 ; Z --> 4 }.
+Proof.
+  apply E_Seq_Continue with { X --> 2 }.
+  - apply E_Ass. reflexivity.
+  - apply E_Ass. reflexivity.
+Qed.
+
+Theorem break_ignore : forall c st st' s,
+  (BREAK;; c) / st \\ s / st' ->
+  st = st'.
+Proof.
+  induction s.
+  - intros. inversion H. subst. inversion H2.
+  - intros. inversion H. subst. inversion H3. reflexivity.
+Qed.
+
+Theorem while_continue : forall b c st st' s,
+  (WHILE b DO c END) / st \\ s / st' ->
+  s = SContinue.
+Proof.
+  destruct b;
+    try (intros; inversion H; subst; reflexivity).
+Qed.
+
+Theorem while_stops_on_break : forall b c st st',
+  beval st b = true ->
+  c / st \\ SBreak / st' ->
+  (WHILE b DO c END) / st \\ SContinue / st'.
+Proof.
+  destruct b;
+    try (intros; inversion H).
+  - inversion H0. subst. 
+    + apply E_WhileTrue_Continue.
 
 
 
