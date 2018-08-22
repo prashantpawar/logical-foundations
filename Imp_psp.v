@@ -1204,7 +1204,7 @@ Reserved Notation "c1 '/' st '\\' s '/' st'"
 
 Inductive ceval : com -> state -> result -> state -> Prop :=
   | E_Skip : forall st,
-      SKIP / st \\ SContinue / st
+      SKIP / st \\ SContinue / st 
   | E_Break : forall st,
       BREAK / st \\ SBreak / st
   | E_Ass : forall st a1 n x,
@@ -1213,9 +1213,9 @@ Inductive ceval : com -> state -> result -> state -> Prop :=
   | E_Seq_Break : forall c1 c2 st st',
       c1 / st \\ SBreak / st' ->
       (c1 ;; c2) / st \\ SBreak / st'
-  | E_Seq_Continue : forall c1 c2 st st' st'',
+  | E_Seq_Continue : forall c1 c2 st st' st'' s,
       c1 / st \\ SContinue / st' ->
-      c1 / st \\ SContinue / st' ->
+      c2 / st' \\ s / st'' ->
       (c1 ;; c2) / st \\ SContinue / st''
   | E_IfTrue_Break : forall st st' b c1 c2,
       beval st b = true ->
@@ -1233,13 +1233,13 @@ Inductive ceval : com -> state -> result -> state -> Prop :=
       beval st b = false ->
       c2 / st \\ SContinue / st' ->
       (IFB b THEN c1 ELSE c2 FI) / st \\ SContinue / st'
-  | E_WhileFalse : forall b c st st',
+  | E_WhileFalse : forall b c st,
       beval st b = false ->
-      (WHILE b DO c END) / st \\ SContinue / st'
+      (WHILE b DO c END) / st \\ SContinue / st
   | E_WhileTrue_Break : forall st st' b c,
       beval st b = true ->
       c / st \\ SBreak / st' ->
-      (WHILE b DO c END) / st \\ SContinue / st
+      (WHILE b DO c END) / st \\ SContinue / st'
   | E_WhileTrue_Continue : forall st st' st'' b c,
       beval st b = true ->
       c / st \\ SContinue / st' ->
@@ -1261,9 +1261,12 @@ Example ceval_example2:
      FI)
    / { --> 0 } \\ SContinue / { X --> 2 ; Z --> 4 }.
 Proof.
-  apply E_Seq_Continue with { X --> 2 }.
+  apply E_Seq_Continue with (st':={ X --> 2 }) (s:=SContinue).
   - apply E_Ass. reflexivity.
-  - apply E_Ass. reflexivity.
+  - apply E_IfFalse_Continue.
+    + reflexivity.
+    + apply E_Ass.
+     reflexivity.
 Qed.
 
 Theorem break_ignore : forall c st st' s,
@@ -1283,18 +1286,65 @@ Proof.
     try (intros; inversion H; subst; reflexivity).
 Qed.
 
+(* Found a bug in my implementation of ceval while trying to prove this *)
 Theorem while_stops_on_break : forall b c st st',
   beval st b = true ->
   c / st \\ SBreak / st' ->
   (WHILE b DO c END) / st \\ SContinue / st'.
 Proof.
   destruct b;
-    try (intros; inversion H).
-  - inversion H0. subst. 
-    + apply E_WhileTrue_Continue.
+    try (intros; inversion H);
+    try (inversion H0; subst; apply E_WhileTrue_Break; assumption).
+Qed.
 
+(* Exercise: 3 stars, advanced, optional (while_break_true) *)
+(* Found another bug in my implementation of ceval while trying to prove this *)
+Theorem while_break_true : forall b c st st',
+  (WHILE b DO c END) / st \\ SContinue / st' ->
+  beval st' b = true ->
+  exists st'', c / st'' \\ SBreak / st'.
+Proof.
+  intros.
+  remember (WHILE b DO c END) as loop.
+  induction H;
+    try (inversion Heqloop);
+    try (subst; clear Heqloop).
+  - rewrite H in H0. inversion H0.
+  - exists st. assumption.
+  - clear IHceval1. apply IHceval2.
+    + reflexivity.
+    + assumption.
+Qed.
 
-
+(* Exercise: 4 stars, advanced, optional (ceval_deterministic) *)
+Theorem ceval_deterministic: forall (c:com) st st1 st2 r1 r2,
+  c / st \\ r1 / st1 ->
+  c / st \\ r2 / st2 ->
+  st1 = st2 /\ r1 = r2.
+Proof.
+  intros c st st1 st2 r1 r2 E1 E2.
+  generalize dependent r2.
+  generalize dependent st2.
+  induction E1;
+    intros st2 r2 E2;
+    inversion E2; subst;
+    try (split; reflexivity);
+    try (apply IHE1; assumption);
+    try (apply IHE1 in H1; destruct H1 as [H11 H12]; subst; inversion H12);
+    try (apply IHE1_1 in H4; destruct H4 as [H13 H14]; inversion H14);
+    try (destruct (beval st b); try inversion H6; try inversion H);
+    try (inversion H2);
+    try (apply IHE1 in H6; destruct H6 as [H15 H16]; split; trivial);
+    try (apply IHE1 in H3; destruct H3 as [H17 H18]; inversion H18);
+    try (rewrite H5 in H; inversion H);
+    try (subst; apply IHE1_1 in H6; inversion H6; inversion H4).
+  - apply IHE1_1 in H1. destruct H1 as [H19 H20]. rewrite <- H19 in H5.
+    apply IHE1_2 in H5. destruct H5 as [H21 H22]. split; assumption.
+  - subst. inversion E1_1.
+  - subst. apply IHE1_1 in H6. destruct H6 as [H23 H24]. inversion H24.
+  - clear H; clear H2. clear E1_1; clear E1_2. apply IHE1_1 in H3. 
+    destruct H3 as [H25 H26]. rewrite <- H25 in H7. apply IHE1_2 in H7. assumption.
+Qed.
 
 
 
