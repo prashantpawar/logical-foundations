@@ -1044,11 +1044,11 @@ Fixpoint s_execute (st : state) (stack : list nat)
       | (SPush n, _)  => s_execute st (n :: stack) t
       | (SLoad x, _) => s_execute st ((st x) :: stack) t
       | (SPlus, a::b::stack') => s_execute st ((b + a) :: stack') t
-      | (SPlus, _) => stack
+      | (SPlus, _) => s_execute st stack t
       | (SMinus, a::b::stack') => s_execute st ((b - a) :: stack') t
-      | (SMinus, _) => stack
+      | (SMinus, _) => s_execute st stack t
       | (SMult, a::b::stack') => s_execute st ((b * a) :: stack') t
-      | (SMult, _) => stack
+      | (SMult, _) => s_execute st stack t
       end
   end.
 
@@ -1104,12 +1104,29 @@ Lemma s_execute_concat_program :
 Proof.
   intros st.
   induction prog1.
-  - (* prog1 = [] *) intros. reflexivity.
-  - (* prog1 = a :: prog1 *) intros. rewrite app_plus. rewrite app_assoc_reverse.
-    destruct a.
-    + (* SPush n *) apply IHprog1.
-    + (* SLoad s *) apply IHprog1.
-    + (* SPlus *) Admitted.
+  - (* prog1 = [] *) intros. simpl. reflexivity.
+  - (* prog1 = a :: prog1 *) intros. rewrite app_plus. 
+    destruct a;
+      try (apply IHprog1).
+    + (* SPlus n *) rewrite app_assoc_reverse. 
+      induction l.
+      * simpl. apply IHprog1.
+      * induction l.
+        { - simpl. apply IHprog1. }
+        { - apply IHprog1. }
+    + (* SLoad s *) rewrite app_assoc_reverse. 
+      induction l.
+      * simpl. apply IHprog1.
+      * induction l.
+        { - simpl. apply IHprog1. }
+        { - apply IHprog1. }
+    + (* SPlus *) rewrite app_assoc_reverse. 
+      induction l.
+      * simpl. apply IHprog1.
+      * induction l.
+        { - simpl. apply IHprog1. }
+        { - apply IHprog1. }
+Qed.
 
 Lemma s_compile_correct_l : forall (st : state) (e : aexp) (l: list nat),
   s_execute st l (s_compile e) = aeval st e :: l.
@@ -1345,6 +1362,11 @@ Proof.
   - clear H; clear H2. clear E1_1; clear E1_2. apply IHE1_1 in H3. 
     destruct H3 as [H25 H26]. rewrite <- H25 in H7. apply IHE1_2 in H7. assumption.
 Qed.
+
+End BreakImp.
+
+(* Exercise: 4 stars, optional (add_for_loop) *)
+
 
 
 
