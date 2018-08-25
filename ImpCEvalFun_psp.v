@@ -156,9 +156,9 @@ Proof.
     + (* c = SKIP *) apply E_Skip.
     + (* c = ::= *) apply E_Ass. reflexivity.
     + (* c = ;; *) destruct (ceval_step st c1 i') eqn:Heqr1.
-      * apply E_Seq with s;
+      * (* r1 = Some s *) apply E_Seq with s;
           try (apply IHi'; assumption).
-      * inversion H1.
+      * (* r1 = None *) inversion H1.
     + (* c = IF *) destruct (beval st b) eqn:Heqr1.
       * (* b = true *) apply E_IfTrue.
         { - assumption. }
@@ -168,18 +168,65 @@ Proof.
         { - apply IHi'. assumption. }
      + (* c = WHILE *) destruct (beval st b) eqn:Heqr1.
       { - (* b = true *) destruct (ceval_step st c i') eqn:Heqr2.
-          + apply E_WhileTrue with s;
+          + (* r1 = Some s *) apply E_WhileTrue with s;
               try (assumption);
               try (apply IHi'; assumption).
-          + apply E_WhileTrue with st';
+          + (* r1 = None *) apply E_WhileTrue with st';
               try (assumption);
               try (inversion H1). }
        { - (* b = false *) inversion H1; subst. apply E_WhileFalse; assumption. }
 Qed.
 
+Theorem ceval_step_more: forall i1 i2 st st' c,
+  i1 <= i2 ->
+  ceval_step st c i1 = Some st' ->
+  ceval_step st c i2 = Some st'.
+Proof.
+induction i1 as [|i1']; intros i2 st st' c Hle Hceval.
+  - (* i1 = 0 *)
+    simpl in Hceval. inversion Hceval.
+  - (* i1 = S i1' *)
+    destruct i2 as [|i2']. inversion Hle.
+    assert (Hle': i1' <= i2') by omega.
+    destruct c.
+    + (* SKIP *)
+      simpl in Hceval. inversion Hceval.
+      reflexivity.
+    + (* ::= *)
+      simpl in Hceval. inversion Hceval.
+      reflexivity.
+    + (* ;; *)
+      simpl in Hceval. simpl.
+      destruct (ceval_step st c1 i1') eqn:Heqst1'o.
+      * (* st1'o = Some *)
+        apply (IHi1' i2') in Heqst1'o; try assumption.
+        rewrite Heqst1'o. simpl. simpl in Hceval.
+        apply (IHi1' i2') in Hceval; try assumption.
+      * (* st1'o = None *)
+        inversion Hceval.
+
+    + (* IFB *)
+      simpl in Hceval. simpl.
+      destruct (beval st b); apply (IHi1' i2') in Hceval;
+        assumption.
+
+    + (* WHILE *)
+      simpl in Hceval. simpl.
+      destruct (beval st b); try assumption.
+      destruct (ceval_step st c i1') eqn: Heqst1'o.
+      * (* st1'o = Some *)
+        apply (IHi1' i2') in Heqst1'o; try assumption.
+        rewrite -> Heqst1'o. simpl. simpl in Hceval.
+        apply (IHi1' i2') in Hceval; try assumption.
+      * (* i1'o = None *)
+        simpl in Hceval. inversion Hceval. Qed.
 
 
-
-
-
+Lemma le_n_0_eq_inv : forall n,
+  0 = n -> n <= 0.
+Proof.
+  induction n; intros.
+  - reflexivity.
+  - inversion H.
+Qed.
 
