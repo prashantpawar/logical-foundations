@@ -55,32 +55,33 @@ Fixpoint ceval_step3 (st : state) (c : com) (i : nat) : option state :=
  end.
 
 Notation "'LETOPT' x <== e1 'IN' e2"
-  := (match e1 with
-      | Some x => e2
-      | None => None
-      end)
-  (right associativity, at level 60).
+   := (match e1 with
+         | Some x => e2
+         | None => None
+       end)
+   (right associativity, at level 60).
 
-Fixpoint ceval_step (st : state) (c : com) (i : nat) : option state :=
+Fixpoint ceval_step (st : state) (c : com) (i : nat)
+                    : option state :=
   match i with
-  | O => None     
+  | O => None
   | S i' =>
     match c with
-    | SKIP =>
-        Some st
-    | l ::= a1 =>
-        Some (st & { l --> (aeval st a1)})
-    | c1 ;; c2 =>
-        LETOPT st' <== ceval_step st c1 i' IN
-        ceval_step st' c2 i'
-    | IFB b THEN c1 ELSE c2 FI =>
-        if (beval st b)
-          then ceval_step st c1 i'
-          else ceval_step st c2 i'
-    | WHILE b1 DO c1 END =>
-        if (beval st b1)
+      | SKIP =>
+          Some st
+      | l ::= a1 =>
+          Some (st & { l --> (aeval st a1)})
+      | c1 ;; c2 =>
+          LETOPT st' <== ceval_step st c1 i' IN
+          ceval_step st' c2 i'
+      | IFB b THEN c1 ELSE c2 FI =>
+          if (beval st b)
+            then ceval_step st c1 i'
+            else ceval_step st c2 i'
+      | WHILE b1 DO c1 END =>
+          if (beval st b1)
           then LETOPT st' <== ceval_step st c1 i' IN
-              ceval_step st' c i'
+               ceval_step st' c i'
           else Some st
     end
   end.
@@ -138,9 +139,9 @@ Proof.
 Qed.
 
 (* Relational vs. Step-Indexed Evaluation *)
-Theorem ceval_step_ceval : forall c st st',
-  (exists i, ceval_step st c i = Some st') ->
-  c / st \\ st'.
+Theorem ceval_step__ceval: forall c st st',
+      (exists i, ceval_step st c i = Some st') ->
+      c / st \\ st'.
 Proof.
   intros c st st' H.
   inversion H as [i E].
@@ -148,34 +149,49 @@ Proof.
   generalize dependent st'.
   generalize dependent st.
   generalize dependent c.
-  induction i as [| i'].
-  - (* i = 0 *) intros c st st' H. inversion H.
-  - (* i = S i' *) intros c st st' H. 
-      destruct c;
-        simpl in H; inversion H; subst; clear H.
-    + (* c = SKIP *) apply E_Skip.
-    + (* c = ::= *) apply E_Ass. reflexivity.
-    + (* c = ;; *) destruct (ceval_step st c1 i') eqn:Heqr1.
-      * (* r1 = Some s *) apply E_Seq with s;
-          try (apply IHi'; assumption).
-      * (* r1 = None *) inversion H1.
-    + (* c = IF *) destruct (beval st b) eqn:Heqr1.
-      * (* b = true *) apply E_IfTrue.
-        { - assumption. }
-        { - apply IHi'. assumption. }
-      * (* b = false *) apply E_IfFalse.
-        { - assumption. }
-        { - apply IHi'. assumption. }
-     + (* c = WHILE *) destruct (beval st b) eqn:Heqr1.
-      { - (* b = true *) destruct (ceval_step st c i') eqn:Heqr2.
-          + (* r1 = Some s *) apply E_WhileTrue with s;
-              try (assumption);
-              try (apply IHi'; assumption).
-          + (* r1 = None *) apply E_WhileTrue with st';
-              try (assumption);
-              try (inversion H1). }
-       { - (* b = false *) inversion H1; subst. apply E_WhileFalse; assumption. }
-Qed.
+  induction i as [| i' ].
+
+  - (* i = 0 -- contradictory *)
+    intros c st st' H. inversion H.
+
+  - (* i = S i' *)
+    intros c st st' H.
+    destruct c;
+           simpl in H; inversion H; subst; clear H.
+      + (* SKIP *) apply E_Skip.
+      + (* ::= *) apply E_Ass. reflexivity.
+
+      + (* ;; *)
+        destruct (ceval_step st c1 i') eqn:Heqr1.
+        * (* Evaluation of r1 terminates normally *)
+          apply E_Seq with s.
+            apply IHi'. rewrite Heqr1. reflexivity.
+            apply IHi'. simpl in H1. assumption.
+        * (* Otherwise -- contradiction *)
+          inversion H1.
+
+      + (* IFB *)
+        destruct (beval st b) eqn:Heqr.
+        * (* r = true *)
+          apply E_IfTrue. rewrite Heqr. reflexivity.
+          apply IHi'. assumption.
+        * (* r = false *)
+          apply E_IfFalse. rewrite Heqr. reflexivity.
+          apply IHi'. assumption.
+
+      + (* WHILE *) destruct (beval st b) eqn :Heqr.
+        * (* r = true *)
+         destruct (ceval_step st c i') eqn:Heqr1.
+         { (* r1 = Some s *)
+           apply E_WhileTrue with s. rewrite Heqr.
+           reflexivity.
+           apply IHi'. rewrite Heqr1. reflexivity.
+           apply IHi'. simpl in H1. assumption. }
+         { (* r1 = None *) inversion H1. }
+        * (* r = false *)
+          inversion H1.
+          apply E_WhileFalse.
+          rewrite <- Heqr. subst. reflexivity.  Qed.
 
 Theorem ceval_step_more: forall i1 i2 st st' c,
   i1 <= i2 ->
@@ -219,7 +235,7 @@ induction i1 as [|i1']; intros i2 st st' c Hle Hceval.
         rewrite -> Heqst1'o. simpl. simpl in Hceval.
         apply (IHi1' i2') in Hceval; try assumption.
       * (* i1'o = None *)
-        simpl in Hceval. inversion Hceval. Qed.
+        simpl in Hceval. inversion Hceval.  Qed.
 
 
 Lemma le_n_0_eq_inv : forall n,
@@ -230,3 +246,69 @@ Proof.
   - inversion H.
 Qed.
 
+Theorem ceval__ceval_step: forall c st st',
+  c / st \\ st' ->
+  exists i, ceval_step st c i = Some st'.
+Proof.
+  intros c st st' Hce.
+  induction Hce.
+  - (* SKIP *) exists 1. simpl. reflexivity.
+  - (* ::= *) exists 1. simpl. rewrite H. reflexivity.
+  - (* ;; *) inversion IHHce1 as [i1 E1].
+    inversion IHHce2 as [i2 E2].
+    apply ceval_step_more with (i2:=i1 + i2) in E1.
+    + apply ceval_step_more with (i2:=i1 + i2) in E2.
+      * exists (S (i1 + i2)). simpl. rewrite E1. apply E2.
+      * apply le_plus_r.
+    + apply le_plus_l.
+  - (* IFB true *) destruct IHHce as [i IHHce].
+    destruct b;
+      try (exists (S i); simpl; trivial);
+      try (inversion H);
+      try (rewrite H1; assumption).
+   - (* IFB false *) destruct IHHce as [i IHHce].
+    destruct b;
+      try (exists (S i); simpl; trivial);
+      try (inversion H);
+      try (rewrite H1; assumption).
+   - (* WHILE false *)
+    destruct b;
+      try (inversion H);
+      try (exists 2; reflexivity);
+      try (exists 2; simpl; rewrite H1; reflexivity).
+   - (* WHILE true *)
+     inversion IHHce1 as [i1 E1].
+     inversion IHHce2 as [i2 E2].
+     apply ceval_step_more with (i2:=i1 + i2) in E1.
+     + apply ceval_step_more with (i2:=i1 + i2) in E2.
+       * exists (S (i1 + i2)); simpl. rewrite H. rewrite E1. apply E2.
+       * apply le_plus_r.
+     + apply le_plus_l.
+Qed.
+
+Theorem ceval_and_ceval_step_coincide: forall c st st',
+  c / st \\ st' 
+  <-> exists i, ceval_step st c i = Some st'.
+Proof.
+  intros c st st'.
+  split. apply ceval__ceval_step. apply ceval_step__ceval.
+Qed.
+
+(* Determination of Evaluation Again *)
+
+Theorem ceval_deterministic' : forall c st st1 st2,
+  c / st \\ st1 ->
+  c / st \\ st2 ->
+  st1 = st2.
+Proof.
+  intros c st st1 st2 He1 He2.
+  apply ceval_and_ceval_step_coincide in He1.
+  apply ceval_and_ceval_step_coincide in He2.
+  inversion He1 as [i1 E1].
+  inversion He2 as [i2 E2].
+  apply ceval_step_more with (i2:=i1 + i2) in E1.
+  - apply ceval_step_more with (i2:=i1 + i2) in E2.
+    + rewrite E1 in E2. inversion E2. reflexivity.
+    + apply le_plus_r.
+  - apply le_plus_l.
+Qed.
