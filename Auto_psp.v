@@ -342,28 +342,50 @@ Qed.
 
 End Repeat.
 
+Example ceval_example1:
+  (X ::= 2;;
+   IFB X <= 1
+    THEN Y ::= 3
+    ELSE Z ::= 4
+   FI)
+  / { --> 0 }
+  \\ { X --> 2 ; Z --> 4 }.
+Proof.
+  (* We supply the intermediate state st'... *)
+  apply E_Seq with { X --> 2 }.
+  - apply E_Ass. reflexivity.
+  - apply E_IfFalse. reflexivity. apply E_Ass. reflexivity.
+Qed.
 
 
+Example ceval'_example1:
+  (X ::= 2;;
+   IFB X <= 1
+    THEN Y ::= 3
+    ELSE Z ::= 4
+   FI)
+  / { --> 0 }
+  \\ { X --> 2 ; Z --> 4 }.
+Proof.
+  eapply E_Seq. (* 1 *)
+  - apply E_Ass. (* 2 *)
+    reflexivity. (* 3 *)
+  - (* 4 *) apply E_IfFalse. reflexivity. apply E_Ass. reflexivity.
+Qed.
 
+Hint Constructors ceval.
+Hint Transparent state.
+Hint Transparent total_map.
 
+Definition st12 := { X --> 1 ; Y --> 2 }.
+Definition st21 := { X --> 2 ; Y --> 1 }.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Example eauto_example : exists s',
+  (IFB X <= Y
+     THEN Z ::= Y - X
+     ELSE Y ::= X + Z
+   FI) / st21 \\ s'.
+Proof. eauto. Qed.
 
 
 
