@@ -163,8 +163,99 @@ Proof.
   - inversion H; subst. apply E_WhileFalse. apply Hb.
 Qed.
 
+(* Exercise: 2 stars, advanced, optional (WHILE_false_informal) *)
 
+(*
+Theorem: if b is equivalent to BFalse then (WHILE b DO c END) / st \\ st' is equivalent to SKIP / st \\ st'.
 
+Proof:
+  In order to show that if b is equivalent to BFalse then (WHILE b DO c END) / st \\ st' is equivalent to SKIP / st \\ st' we need to show that  and .
+
+  * -> If b is equivalent to BFalse then (WHILE b DO c END) / st \\ st' implies SKIP / st \\ st'.
+
+  + Suppose (WHILE b DO c END) / st \\ st' is derived via E_WhileFalse then st = st'. This shows SKIP / st \\ st' from the definition of E_Skip.
+  + Suppose (WHILE b DO c END) / st \\ st' is derived via E_WhileTrue then that implies that beval b = true. But from our hypothesis, beval b = false, a contradiction.
+
+  * <- If b is equivalent to BFalse then SKIP / st \\ st' implies (WHILE b DO c END) / st \\ st'.
+
+  If we apply E_WhileFalse to (WHILE b DO c END) / st \\ st' we get st = st'. also SKIP / st \\ st' implies st = st'. Therefore (WHILE b DO c END) / st \\ st'.
+*)
+
+(* Lemma: If b is equivalent to BTrue, then it cannot be the case that (WHILE b DO c END) / st \\ st'.
+
+  Proof: Suppose (WHILE b DO c END) / st \\ st'. We can show my induction on the derivation of (WHILE b DO c END) / st \\ st' that this assumption leads to a contradiction.
+
+    * Suppose (WHILE b DO c END) / st \\ st' is proven by E_WhileFalse. This implies that beval b = false. But we know that b = BTrue, that means beval BTrue = false, a contradiction.
+    * Suppose (WHILE b DO c END) / st \\ st' is proven by E_WhileTrue. Then we are given the induction hypothesis that (WHILE b DO c END) / st \\ st' is not true, which is exactly what we are trying to prove!
+    * Since these are the only rules that could have been used to prove (WHILE b DO c END) / st \\ st', the other cases of the induction are immediately contradictory.
+*)
+
+Lemma WHILE_true_nonterm : forall b c st st',
+  bequiv b BTrue ->
+  ~( (WHILE b DO c END) / st \\ st' ).
+Proof.
+  intros b c st st' Hb.
+  intros H.
+  remember (WHILE b DO c END) as cw eqn:Heqcw.
+  induction H;
+  (* Most rules don't apply; we rule them out by inversion: *)
+  inversion Heqcw; subst; clear Heqcw.
+  (* The two interesting cases are the ones for WHILE loops: *)
+  - (* E_WhileFalse *) (* contradictory -- b is always true! *)
+    unfold bequiv in Hb.
+    (* rewrite is able to instantiate the quantifier in st *)
+    rewrite Hb in H. inversion H.
+  - (* E_WhileTrue *) (* immediate from the IH *)
+    apply IHceval2. reflexivity. Qed.
+
+(* Exercise: 2 stars, optional (WHILE_true_nonterm_informal) *)
+
+(* Lemma WHILE_true_nonterm means that if the term b of (WHILE b DO c END) / st \\ st' is literally equal to BTrue, then the loop will never terminate. *)
+
+(* Exercise: 2 stars, recommended (WHILE_true) *)
+Theorem WHILE_true: forall b c,
+  bequiv b true ->
+  cequiv
+    (WHILE b DO c END)
+    (WHILE true DO SKIP END).
+Proof.
+  intros b c Hb.
+  intros st st'.
+  split; intros H.
+  - (* -> *) simpl. apply WHILE_true_nonterm with (c:=c) (st:=st) (st':=st') in Hb. unfold not in Hb. exfalso. apply Hb. apply H.
+  - (* <- *) simpl. simpl in H. apply WHILE_true_nonterm in H.
+    + exfalso. assumption.
+    + unfold bequiv. intros. reflexivity.
+Qed.
+
+Theorem loop_unrolling: forall b c,
+  cequiv
+    (WHILE b DO c END)
+    (IFB b THEN (c ;; WHILE b DO c END) ELSE SKIP FI).
+Proof.
+  intros b c st st'.
+  remember (WHILE b DO c END) as cw eqn:Heqcw.
+  split; intros H.
+  - (* -> *) induction H;
+    try (inversion Heqcw; subst; clear Heqcw).
+    + apply E_IfFalse; auto. apply E_Skip.
+    + apply E_IfTrue; auto. apply E_Seq with st'; auto.
+  - (* <- *) inversion H; subst.
+    + inversion H6; subst. apply E_WhileTrue with st'0; auto.
+    + inversion H6; subst. apply E_WhileFalse; auto.
+Qed.
+
+(* Exercise: 2 stars, optional (seq_assoc) *)
+Theorem seq_assoc : forall c1 c2 c3,
+  cequiv ((c1;;c2);;c3) (c1;;(c2;;c3)).
+Proof.
+  intros c1 c2 c3 st st'.
+  split; intros.
+  - (* -> *) inversion H; subst. inversion H2; subst. 
+    apply E_Seq with st'1; auto. apply E_Seq with st'0; auto.
+  - (* <- *) inversion H; subst. inversion H5; subst.
+    apply E_Seq with st'1; auto. apply E_Seq with st'0; auto.
+Qed.
 
 
 
