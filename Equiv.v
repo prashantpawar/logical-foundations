@@ -257,6 +257,226 @@ Proof.
     apply E_Seq with st'1; auto. apply E_Seq with st'0; auto.
 Qed.
 
+Theorem identity_assignment : forall (X:string),
+  cequiv
+    (X ::= X)
+    SKIP.
+Proof.
+  intros X st st'.
+  split; intros H.
+  - (* -> *) inversion H; subst. simpl in *.
+    replace (st & {X --> st X}) with st.
+    + apply E_Skip.
+    + apply functional_extensionality.
+      rewrite t_update_same. reflexivity.
+  - (* <- *) replace st' with (st' & {X --> st' X}).
+    + inversion H; subst. apply E_Ass. reflexivity.
+    + apply functional_extensionality. rewrite t_update_same. reflexivity.
+Qed.
+
+(* Exercise: 2 stars, recommended (assign_aequiv) *)
+Theorem assign_aequiv : forall (X:string) e,
+  aequiv X e ->
+  cequiv SKIP (X ::= e).
+Proof.
+  intros X e Ha st st'.
+  split; intros H.
+  - (* -> *) replace st' with (st' & {X --> st' X}).
+    + inversion H; subst. apply E_Ass. 
+      unfold aequiv in Ha. simpl in Ha. rewrite Ha. reflexivity.
+    + apply functional_extensionality. rewrite t_update_same. reflexivity.
+  - (* -> *) replace st with (st & {X --> st X}).
+    + inversion H; subst. unfold aequiv in Ha. simpl in Ha. rewrite Ha. apply E_Skip.
+    + apply functional_extensionality. rewrite t_update_same. reflexivity.
+Qed.
+
+(* Exercise: 2 stars (equiv_classes) *)
+Definition prog_a : com :=
+  WHILE ! (X <= 0) DO
+    X ::= X + 1
+  END.
+Definition prog_b : com :=
+  IFB X = 0 THEN
+    X ::= X + 1;;
+    Y ::= 1
+  ELSE
+    Y ::= 0
+  FI;;
+  X ::= X - Y;;
+  Y ::= 0.
+Definition prog_c : com :=
+  SKIP.
+Definition prog_d : com :=
+  WHILE ! (X = 0) DO
+    X ::= (X * Y) + 1
+  END.
+Definition prog_e : com :=
+  Y ::= 0.
+Definition prog_f : com :=
+  Y ::= X + 1;;
+  WHILE ! (X = Y) DO
+    Y ::= X + 1
+  END.
+Definition prog_g : com :=
+  WHILE true DO
+    SKIP
+  END.
+Definition prog_h : com :=
+  WHILE ! (X = X) DO
+    X ::= X + 1
+  END.
+Definition prog_i : com :=
+  WHILE ! (X = Y) DO
+    X ::= Y + 1
+  END.
+
+Definition equiv_classes : list (list com) :=
+  [ [prog_a;prog_g;prog_f;prog_d] ;
+    [prog_c;prog_h] ;
+    [prog_b;prog_e] ;
+    [prog_i] ].
+
+(* Properties of Behavioral Equivalence *)
+Lemma refl_aequiv : forall (a : aexp), aequiv a a.
+Proof.
+  intros a st. reflexivity.
+Qed.
+
+Lemma sym_aequiv : forall (a1 a2 : aexp),
+  aequiv a1 a2 -> aequiv a2 a1.
+Proof.
+  intros a1 a2 Ha st.
+  unfold aequiv in Ha. rewrite Ha. reflexivity.
+Qed.
+
+Lemma trans_aequiv : forall (a1 a2 a3 : aexp),
+  aequiv a1 a2 ->
+  aequiv a2 a3 ->
+  aequiv a1 a3.
+Proof.
+  intros a1 a2 a3 Ha1 Ha2 st.
+  unfold aequiv in *. rewrite Ha1. rewrite Ha2. reflexivity.
+Qed.
+
+Lemma refl_bequiv : forall (b : bexp), bequiv b b.
+Proof.
+  intros b st.
+  reflexivity.
+Qed.
+
+Lemma sym_bequiv : forall (b1 b2 : bexp),
+  bequiv b1 b2 ->
+  bequiv b2 b1.
+Proof.
+  intros b1 b2 Hb st.
+  unfold bequiv in Hb. rewrite Hb. reflexivity.
+Qed.
+
+Lemma trans_bequiv : forall (b1 b2 b3 : bexp),
+  bequiv b1 b2 ->
+  bequiv b2 b3 ->
+  bequiv b1 b3.
+Proof.
+  intros b1 b2 b3 Hb1 Hb2 st.
+  unfold bequiv in *. rewrite Hb1. rewrite Hb2. reflexivity.
+Qed.
+
+Lemma refl_cequiv : forall (c : com), cequiv c c.
+Proof.
+  intros c st st'.
+  split; intros H; assumption.
+Qed.
+
+Lemma sym_cequiv : forall (c1 c2 : com),
+  cequiv c1 c2 ->
+  cequiv c2 c1.
+Proof.
+  intros c1 c2 Hc st st'. unfold cequiv in Hc.
+  split; intros H.
+  - rewrite Hc; assumption.
+  - rewrite <- Hc; assumption.
+Qed.
+
+Lemma iff_trans : forall (P1 P2 P3 : Prop),
+  (P1 <-> P2) -> (P2 <-> P3) -> (P1 <-> P3).
+Proof.
+  intros P1 P2 P3 H1 H2.
+  split; rewrite H1; rewrite H2; intros; assumption.
+Qed.
+
+Lemma trans_cequiv : forall (c1 c2 c3 : com),
+  cequiv c1 c2 ->
+  cequiv c2 c3 ->
+  cequiv c1 c3.
+Proof.
+  intros c1 c2 c3 Hc1 Hc2 st st'.
+  unfold cequiv in *.
+  split; intros H.
+  - rewrite <- Hc2. rewrite <- Hc1. assumption.
+  - rewrite Hc1. rewrite Hc2. assumption.
+Qed.
+
+(* Behavioral Equivalence is a Congruence *)
+
+Theorem CAss_congruence : forall i a1 a1',
+  aequiv a1 a1' ->
+  cequiv (CAss i a1) (CAss i a1').
+Proof.
+  intros i a1 a1' Heqv st st'.
+  unfold aequiv in Heqv.
+  split; intros Hceval;
+  try (inversion Hceval; subst; apply E_Ass; rewrite Heqv; reflexivity).
+Qed.
+
+(* Theorem: Equivalence is a congruence for WHILE - that is, if b1 is equivalent to b1' and c1 is equivalent to c1', then WHILE b1 DO c1 END is equivalent to WHILE b1' DO c1' END.
+
+Proof: Suppose b1 is equivalent to b1' and c1 is equivalent to c1'. We must show that for every st and st,
+  WHILE b1 DO c1 END / st \\ st' 
+  is equivalent to 
+  WHILE b1' DO c1' END / st \\ st'.
+
+  * (->) We show that WHILE b1 DO c1 END / st \\ st' implies WHILE b1' DO c1' END / st \\ st', by induction on the derivation of WHILE b1 DO c1 END / st \\ st'. The only non-trivial cases are when the final rule of the derivation is E_WhileTrue and E_WhileFalse.
+    + Lets suppose that WHILE b1 DO c1 END / st \\ st' is proven by E_WhileFalse. This implies that beval b1 = false and that st = st'. This implies that beval b1' = false, since b1 and b1' are equivalent. From this we can infer that WHILE b1' DO c1' END / st \\ st'.
+    + Lets suppose that WHILE b1 DO c1 END / st \\ st' is proven by E_WhileTrue. This implies that beval b1 = true and beval b1' = true, and also WHILE b1 DO c1 END / st'0 \\ st' for some st'0, with the induction hypothesis WHILE b1' DO c1' END / st'0 \\ st'.
+     Since c1 and c1' are equivalent, we know that c1 / st \\ st'0. And since b1 and b1' are equivalent, we have beval b1' = true.
+     Applying E_WhileTrue, we get WHILE b1' DO c1' END / st \\ st'.
+
+  * (<-) Similar.
+*)
+
+Theorem CWhile_congruence : forall b1 b1' c1 c1',
+  bequiv b1 b1' -> cequiv c1 c1' ->
+  cequiv (WHILE b1 DO c1 END) (WHILE b1' DO c1' END).
+Proof.
+  unfold bequiv, cequiv.
+  intros b1 b1' c1 c1' Hb Hc st st'.
+  split; intros Hce.
+  - (* -> *) remember (WHILE b1 DO c1 END) as cwhile eqn:Heqcwhile.
+    induction Hce; inversion Heqcwhile; subst.
+    + apply E_WhileFalse. rewrite <- Hb. assumption.
+    + apply E_WhileTrue with st'.
+      * rewrite <- Hb. assumption.
+      * rewrite <- Hc. assumption.
+      * apply IHHce2. reflexivity.
+  - (* <- *) remember (WHILE b1' DO c1' END) as cwhile eqn:Heqcwhile.
+    induction Hce; inversion Heqcwhile; subst.
+    + apply E_WhileFalse. rewrite Hb. assumption.
+    + apply E_WhileTrue with st'.
+      * rewrite Hb. assumption.
+      * rewrite Hc. assumption.
+      * apply IHHce2. reflexivity.
+Qed.
+
+
+
+
+
+
+
+
+
+
+
 
 
 
