@@ -453,30 +453,380 @@ Proof.
   split; intros Hce.
   - (* -> *) remember (WHILE b1 DO c1 END) as cwhile eqn:Heqcwhile.
     induction Hce; inversion Heqcwhile; subst.
-    + apply E_WhileFalse. rewrite <- Hb. assumption.
-    + apply E_WhileTrue with st'.
-      * rewrite <- Hb. assumption.
-      * rewrite <- Hc. assumption.
-      * apply IHHce2. reflexivity.
+    + (* E_WhileFalse *) apply E_WhileFalse. rewrite <- Hb. assumption.
+    + (* E_WhileTrue *) apply E_WhileTrue with st'.
+      * (* show loop runs *) rewrite <- Hb. assumption.
+      * (* body execution *) rewrite <- Hc. assumption.
+      * (* subsequent loop execution *) apply IHHce2. reflexivity.
   - (* <- *) remember (WHILE b1' DO c1' END) as cwhile eqn:Heqcwhile.
     induction Hce; inversion Heqcwhile; subst.
-    + apply E_WhileFalse. rewrite Hb. assumption.
-    + apply E_WhileTrue with st'.
-      * rewrite Hb. assumption.
-      * rewrite Hc. assumption.
-      * apply IHHce2. reflexivity.
+    + (* E_WhileFalse *) apply E_WhileFalse. rewrite Hb. assumption.
+    + (* E_WhileTrue *) apply E_WhileTrue with st'.
+      * (* show loop runs *) rewrite Hb. assumption.
+      * (* body execution *) rewrite Hc. assumption.
+      * (* subsequent loop execution *) apply IHHce2. reflexivity.
 Qed.
 
+(* Exercise: 3 stars, optional (CSeq_congruence) *)
+Theorem CSeq_congruence : forall c1 c1' c2 c2',
+  cequiv c1 c1' -> cequiv c2 c2' ->
+  cequiv (c1;;c2) (c1';;c2').
+Proof.
+  intros c1 c1' c2 c2' Hc1 Hc2 st st'.
+  unfold cequiv in *.
+  split; intros H.
+  - (* -> *) remember (c1';;c2') as cseq eqn:Hcseq.
+    inversion H; subst.
+    induction H;
+      try (apply E_Seq with st'0; 
+        try (rewrite <- Hc1; auto); 
+        try(rewrite <- Hc2; auto)).
+   - (* <- *) remember (c1;;c2) as cseq eqn:Hcseq.
+     inversion H; subst.
+     induction H;
+      try (apply E_Seq with st'0; 
+        try (rewrite Hc1; auto); 
+        try(rewrite Hc2; auto)).
+Qed.
+
+(* Exercise: 3 stars, (CIf_congruence) *)
+Theorem CIf_congruence : forall b1 b1' c1 c1' c2 c2',
+  bequiv b1 b1' -> cequiv c1 c1' -> cequiv c2 c2' ->
+  cequiv (IFB b1 THEN c1 ELSE c2 FI) (IFB b1' THEN c1' ELSE c2' FI).
+Proof.
+  intros b1 b1' c1 c1' c2 c2' Hb Hc1 Hc2 st st'.
+  unfold bequiv, cequiv in *.
+  split; intros Hceval.
+  - (* -> *) remember (IFB b1' THEN c1' ELSE c2' FI) as cif eqn:Hcif.
+    inversion Hceval; subst.
+    + (* E_IfTrue *) apply E_IfTrue.
+      * (* condition evaluation *) rewrite <- Hb. assumption.
+      * (* then body *) rewrite <- Hc1. assumption.
+    + (* E_IfFalse *) apply E_IfFalse.
+      * (* condition evaluation *) rewrite <- Hb. assumption.
+      * (* else body *) rewrite <- Hc2. assumption.
+   - (* <- *) remember (IFB b1 THEN c1 ELSE c2 FI) as cif eqn:Hcif.
+    inversion Hceval; subst.
+    + (* E_IfTrue *) apply E_IfTrue.
+      * (* condition evaluation *) rewrite Hb. assumption.
+      * (* then body *) rewrite Hc1. assumption.
+    + (* E_IfFalse *) apply E_IfFalse.
+      * (* condition evaluation *) rewrite Hb. assumption.
+      * (* else body *) rewrite Hc2. assumption.
+Qed.
+
+Example congruence_example:
+  cequiv
+    (* Program 1: *)
+    (X ::= 0;;
+     IFB X = 0
+     THEN
+      Y ::= 0
+     ELSE
+      Y ::= 42
+     FI)
+    (* Program 2: *)
+    (X ::= 0;;
+     IFB X = 0
+     THEN
+      Y ::= X - X (* <--- changed here *)
+     ELSE
+      Y ::= 42
+     FI).
+Proof.
+  apply CSeq_congruence.
+  - apply refl_cequiv.
+  - apply CIf_congruence.
+    + apply refl_bequiv.
+    + apply CAss_congruence. unfold aequiv. simpl. symmetry. apply minus_diag.
+    + apply refl_cequiv.
+Qed.
+
+(* Exercise: 3 strars, advanced, optional (not_congr) *)
+
+(* We've shown that the cequiv relation is both an equivalence and a congruence on commands. Can you think of a relation on commands that is an equivalence but not a congruence? *)
+
+(* Program Transformations *)
+
+Definition atrans_sound (atrans : aexp -> aexp) : Prop :=
+  forall (a : aexp),
+    aequiv a (atrans a).
+
+Definition btrans_sound (btrans : bexp -> bexp) : Prop :=
+  forall (b : bexp),
+    bequiv b (btrans b).
+
+Definition ctrans_sound (ctrans : com -> com) : Prop :=
+  forall (c : com),
+    cequiv c (ctrans c).
+
+(* Consant-Folding Transformation *)
+Fixpoint fold_constants_aexp (a : aexp) : aexp :=
+  match a with
+  | ANum n => ANum n
+  | AId i => AId i
+  | APlus a1 a2 =>
+    match (fold_constants_aexp a1, fold_constants_aexp a2) with
+    | (ANum n1, ANum n2) => ANum (n1 + n2)
+    | (a1', a2') => APlus a1' a2'
+    end
+  | AMinus a1 a2 =>
+    match (fold_constants_aexp a1, fold_constants_aexp a2) with
+    | (ANum n1, ANum n2) => ANum (n1 - n2)
+    | (a1', a2') => AMinus a1' a2'
+    end
+  | AMult a1 a2 =>
+    match (fold_constants_aexp a1, fold_constants_aexp a2) with
+    | (ANum n1, ANum n2) => ANum (n1 * n2)
+    | (a1', a2') => AMult a1' a2'
+    end
+  end.
 
 
+(* needed for parsing the examples below *)
+Local Open Scope aexp_scope.
+Local Open Scope bexp_scope.
+
+Example fold_aexp_ex1 :
+  fold_constants_aexp ((1 + 2) * X) = (3 * X).
+Proof.
+  reflexivity.
+Qed.
+
+Example fold_aexp_ex2 :
+  fold_constants_aexp (X - ((0 * 6) + Y)) = (X - (0 + Y)).
+Proof.
+  reflexivity.
+Qed.
+
+Fixpoint fold_constants_bexp (b : bexp) : bexp :=
+  match b with
+  | BTrue => BTrue
+  | BFalse => BFalse
+  | BEq a1 a2 =>
+    match (fold_constants_aexp a1, fold_constants_aexp a2) with
+    | (ANum n1, ANum n2) => if beq_nat n1 n2 then BTrue else BFalse
+    | (a1', a2') => BEq a1' a2'
+    end
+   | BLe a1 a2 =>
+    match (fold_constants_aexp a1, fold_constants_aexp a2) with
+    | (ANum n1, ANum n2) => if leb n1 n2 then BTrue else BFalse
+    | (a1', a2') => BLe a1' a2'
+    end
+   | BNot b => 
+      match (fold_constants_bexp b) with
+      | BTrue => BFalse
+      | BFalse => BTrue
+      | b' => BNot b'
+      end
+   | BAnd b1 b2 => 
+      match (fold_constants_bexp b1, fold_constants_bexp b2) with
+      | (BTrue, BTrue) => BTrue
+      | (BTrue, BFalse) => BFalse
+      | (BFalse, BTrue) => BFalse
+      | (BFalse, BFalse) => BFalse
+      | (b1', b2') => BAnd b1' b2'
+      end
+  end.
+
+Example fold_bexp_ex1 :
+  fold_constants_bexp (true && ! (false && true)) = true.
+Proof.
+  reflexivity.
+Qed.
+
+Example fold_bexp_ex2 :
+  fold_constants_bexp ((X = Y) && (0 = (2 - (1 + 1)))) = ((X = Y) && true).
+Proof.
+  reflexivity.
+Qed.
+
+Fixpoint fold_constants_com (c : com) : com :=
+  match c with
+  | SKIP => SKIP
+  | i ::= a => CAss i (fold_constants_aexp a)
+  | c1;;c2 => (fold_constants_com c1);;(fold_constants_com c2)
+  | IFB b THEN c1 ELSE c2 FI =>
+      match (fold_constants_bexp b) with
+      | BTrue => fold_constants_com c1
+      | BFalse => fold_constants_com c2
+      | b' => IFB b' THEN (fold_constants_com c1) 
+                     ELSE (fold_constants_com c2) FI
+      end
+  | WHILE b DO c END => 
+      match (fold_constants_bexp b) with
+      | BFalse => SKIP
+      | BTrue => WHILE BTrue DO SKIP END
+      | b' => WHILE b' DO (fold_constants_com c) END
+      end
+  end.
 
 
+Example fold_com_ex1 :
+  fold_constants_com
+    (* Original program: *)
+    (X ::= 4 + 5;;
+     Y ::= X - 3;;
+     IFB (X - Y) = (2 + 4) THEN
+       SKIP
+     ELSE
+       Y ::= 0
+     FI;;
+     IFB 0 <= (4 - (2 + 1))
+     THEN
+       Y ::= 0
+     ELSE
+       SKIP
+     FI;;
+     WHILE Y = 0 DO
+       X ::= X + 1
+     END)
+  = (* After constant folding: *)
+    (X ::= 9;;
+     Y ::= X - 3;;
+     IFB (X - Y) = 6 THEN
+       SKIP
+     ELSE
+       Y ::= 0
+     FI;;
+     Y ::= 0;;
+     WHILE Y = 0 DO
+       X ::= X + 1 
+     END).
+Proof. reflexivity. Qed.
 
+(* Soundness of Constant Folding *)
+Theorem fold_constants_aexp_sound :
+  atrans_sound fold_constants_aexp.
+Proof.
+  intros a st.
+  induction a; auto;
+    try (simpl; rewrite IHa1, IHa2; 
+         induction (fold_constants_aexp a1); 
+         induction (fold_constants_aexp a2); auto).
+Qed.
 
+(* Exercise: 3 stars, optional (fold_bexp_Eq_informal) *)
 
+(* Theorem: The constant folding function for booleans, fold_constants_bexp, is sound.
 
+Proof: We must show that b is equivalent to fold_constants_bexp, for all boolean expression b.
 
+  We will do that by performing induction on b. The cases for BTrue and BFalse are trivial.
 
+  * (BEq) In this case we must show that
+    beval st (BEq a1 a2)
+    = beval st (fold_constants_bexp (BEq a1 a2)).
+
+    There are two cases to consider.
+    + Suppose fold_constants_aexp a1 = ANum n1 and fold_constants_aexp a2 = ANum n2 for some n1 and n2.
+
+    In this case we have
+    fold_constants_bexp (BEq a1 a2)
+    = if beq_nat n1 n2 then BTrue else BFalse
+
+    and
+
+    beval st (BEq a1 a2)
+    = beq_nat (aeval st a1) (aeval st a2).
+
+    By the soundness of constant folding for the arithmatic expressions (Lemma fold_constants_aexp_sound), we know
+      aeval st a1
+    = aeval st (fold_constants_aexp a1)
+    = aeval st (ANum n1)
+    = n1
+
+    and
+
+      aeval st a2
+    = aeval st (fold_constants_aexp a2)
+    = aeval st (ANum n2)
+    = n2
+
+    beval st (BEq a1 a2)
+    = beq_nat n1 n2.
+
+    Similarly,
+    beval st (fold_constants_bexp (BEq a1 a2))
+    = beval st (if beq_nat n1 n2 then BTrue else BFalse).
+
+    Consider n1 = n2.
+
+    beval st (fold_constants_bexp (BEq a1 a2))
+    = beval st BTrue
+    = true
+
+  also
+    beval st (BEq a1 a2)
+    = beq_nat n1 n2 = true
+
+    Similarly n1 =/= n2
+
+    beval st (fold_constants_bexp (BEq a1 a2))
+    = beval st BFalse
+    = false
+
+  also
+    beval st (BEq a1 a2)
+    = beq_nat n1 n2 = false
+
+  Therefore
+    beval st (BEq a1 a2)
+    = beval st (fold_constants_bexp (BEq a1 a2)).
+
+   + Otherwise one of fold_constants_aexp a1 and fold_constants_aexp a2 is not a constant. In this case we must show.
+
+    beval st (BEq a1 a2)
+    = beval st (BEq (fold_constants_aexp a1) (fold_constants_aexp a2))
+
+    which, by the definition of beval, is the same as showing
+
+    beq_nat (aeval st a1) (aeval st a2)
+    = beq_nat (aeval st (fold_constants_aexp a1))
+              (aeval st (fold_constants_aexp a2))
+
+    By the soundness of constant folding for arithmatic expressions (Lemma fold_constants_aexp_sound), we know
+
+    aeval st a1
+    = aeval st (fold_constants_aexp a1)
+
+    and
+
+    aevla st a2
+    = aeval st (fold_constants_aexp a2)
+
+    Replacing these definitions in our equation we get,
+
+    beq_nat (aeval st a1) (aeval st a2)
+    = beq_nat (aeval st a1) (aeval st a2)
+
+    thereby completing the case.
+*)
+
+Theorem fold_constants_bexp_sound :
+  btrans_sound fold_constants_bexp.
+Proof.
+  intros b st.
+  induction b; auto.
+  - (* BEq *) simpl.
+    rewrite fold_constants_aexp_sound; 
+    rewrite fold_constants_aexp_sound with (a:=a0).
+    induction (fold_constants_aexp a); induction (fold_constants_aexp a0); auto.
+    + (* The only interesting case is when both a1 and a2
+       become constants after folding *)
+      simpl. induction (n =? n0); auto.
+  - (* BLe *) simpl.
+    rewrite fold_constants_aexp_sound; 
+    rewrite fold_constants_aexp_sound with (a:=a0).
+    induction (fold_constants_aexp a); induction (fold_constants_aexp a0); auto.
+    + (* The only interesting case is when both a1 and a2
+       become constants after folding *)
+      simpl. induction (n <=? n0); auto.
+  - (* BNot *) simpl. rewrite IHb.
+    induction (fold_constants_bexp b); auto.
+  - (* BAnd *) simpl. rewrite IHb1, IHb2.
+    induction (fold_constants_bexp b1); induction (fold_constants_bexp b2); auto.
+Qed.
 
 
 
