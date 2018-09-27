@@ -828,6 +828,124 @@ Proof.
     induction (fold_constants_bexp b1); induction (fold_constants_bexp b2); auto.
 Qed.
 
+(* Exercise: 3 stars (fold_constants_com_sound) *)
+
+Theorem fold_constants_com_sound :
+  ctrans_sound fold_constants_com.
+Proof.
+  unfold ctrans_sound. induction c.
+  - (* SKIP *) apply refl_cequiv.
+  - (* ::= *) apply CAss_congruence. apply fold_constants_aexp_sound.
+  - (* ;; *) apply CSeq_congruence; auto.
+  - (* IFB *) assert (bequiv b (fold_constants_bexp b)). 
+    { apply fold_constants_bexp_sound. }
+      destruct (fold_constants_bexp b) eqn:Heqb;
+        try (simpl; rewrite Heqb; apply CIf_congruence; auto).
+      + simpl. rewrite Heqb. unfold cequiv in *. unfold bequiv in H.
+        split; intros.
+        * apply IHc1. inversion H0; subst; auto. rewrite H in H6. inversion H6.
+        * simpl in *. rewrite <- IHc1 in H0. induction b; constructor; auto.
+      + simpl. rewrite Heqb. unfold cequiv in *. unfold bequiv in H. 
+        split; intros.
+        * apply IHc2. inversion H0; subst; auto. rewrite H in H6. inversion H6.
+        * simpl in *. rewrite <- IHc2 in H0.
+          induction b;
+            try (apply E_IfFalse; auto).
+  - (* WHILE *) assert (bequiv b (fold_constants_bexp b)). {
+      apply fold_constants_bexp_sound. } simpl.
+      destruct (fold_constants_bexp b) eqn:Heqb;
+        try (apply CWhile_congruence; assumption).
+      + apply WHILE_true. assumption.
+      + apply WHILE_false. assumption.
+Qed.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
