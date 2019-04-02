@@ -860,10 +860,172 @@ Proof.
 Qed.
 
 
+(* Exercise: 4 stars, advanced, optional (optimize_0plus) *)
+
+(*
+Fixpoint optimize_0plus (e:aexp) : aexp :=
+  match e with
+  | ANum n =>
+      ANum n
+  | APlus (ANum 0) e2 =>
+      optimize_0plus e2
+  | APlus e1 e2 =>
+      APlus (optimize_0plus e1) (optimize_0plus e2)
+  | AMinus e1 e2 =>
+      AMinus (optimize_0plus e1) (optimize_0plus e2)
+  | AMult e1 e2 =>
+      AMult (optimize_0plus e1) (optimize_0plus e2)
+  end.
+*)
+
+Fixpoint optimize_0plus_aexp (e:aexp) : aexp :=
+  match e with
+  | ANum n =>
+      ANum n
+  | AId x =>
+      AId x
+  | APlus (ANum 0) e2 =>
+      optimize_0plus_aexp e2
+  | APlus e1 e2 =>
+      APlus (optimize_0plus_aexp e1) (optimize_0plus_aexp e2)
+  | AMinus e1 e2 =>
+      AMinus (optimize_0plus_aexp e1) (optimize_0plus_aexp e2)
+  | AMult e1 e2 =>
+      AMult (optimize_0plus_aexp e1) (optimize_0plus_aexp e2)
+  end.
+
+Theorem optimize_0plus_aexp_sound :
+  atrans_sound optimize_0plus_aexp.
+Proof.
+  unfold atrans_sound. intros a.
+  induction a; simpl;
+    try (apply refl_aequiv).
+  - (* APlus *) unfold aequiv in *. intros. simpl. rewrite IHa1. rewrite IHa2.
+    induction a1; induction a2; simpl;
+      try (induction n; auto);
+      try (auto).
+  - (* AMinus *) unfold aequiv in *. intros. simpl. rewrite IHa1, IHa2. reflexivity.
+  - (* AMult *) unfold aequiv in *. intros. simpl. rewrite IHa1, IHa2. reflexivity.
+Qed.
+
+Fixpoint optimize_0plus_bexp (e : bexp) : bexp :=
+  match e with
+  | BTrue => BTrue
+  | BFalse => BFalse
+  | BEq a1 a2 => BEq (optimize_0plus_aexp a1) (optimize_0plus_aexp a2)
+  | BLe a1 a2 => BLe (optimize_0plus_aexp a1) (optimize_0plus_aexp a2)
+  | BNot b => BNot (optimize_0plus_bexp b)
+  | BAnd b1 b2 => BAnd (optimize_0plus_bexp b1) (optimize_0plus_bexp b2)
+  end.
+
+Theorem optimize_0plus_bexp_sound :
+  btrans_sound optimize_0plus_bexp.
+Proof.
+  unfold btrans_sound. intros b.
+  induction b; simpl;
+    try (apply refl_bequiv);
+    try (intros st; simpl; rewrite <- optimize_0plus_aexp_sound; rewrite <- optimize_0plus_aexp_sound; reflexivity).
+  - (* ! *) intros st. simpl. apply f_equal. unfold bequiv in IHb. apply IHb.
+  - (* && *) unfold bequiv in *. simpl. intros st. rewrite <- IHb1. rewrite <- IHb2. reflexivity.
+Qed.
+
+Fixpoint optimize_0plus_com (c : com) : com :=
+  match c with
+  | SKIP => SKIP
+  | x ::= a => x ::= (optimize_0plus_aexp a)
+  | c1;;c2 => (optimize_0plus_com c1) ;; (optimize_0plus_com c2)
+  | IFB b THEN c1 ELSE c2 FI => 
+      IFB  (optimize_0plus_bexp b)
+      THEN (optimize_0plus_com c1)
+      ELSE (optimize_0plus_com c2) FI
+  | WHILE b DO c END => WHILE (optimize_0plus_bexp b) DO (optimize_0plus_com c) END
+  end.
+
+Theorem optimize_0plus_com_sound :
+  ctrans_sound optimize_0plus_com.
+Proof.
+  unfold ctrans_sound. intros c.
+  intros st st'; split; intros H.
+  - (* -> *) induction H.
+    + (* SKIP *) simpl. constructor.
+    + (* ::= *) simpl. constructor.  rewrite <- H. rewrite <- optimize_0plus_aexp_sound. reflexivity.
+    + (* ;; *) simpl. apply E_Seq with st'; assumption.
+    + (* IFB true *) simpl. apply E_IfTrue; auto.
+      rewrite <- optimize_0plus_bexp_sound. assumption.
+    + (* IF false *) simpl. apply E_IfFalse; auto.
+      rewrite <- optimize_0plus_bexp_sound. assumption.
+    + (* WHILE true *) simpl. apply E_WhileFalse. rewrite <- optimize_0plus_bexp_sound. assumption.
+    + (* WHILE false *) simpl. apply E_WhileTrue with st'; auto. rewrite <- optimize_0plus_bexp_sound. assumption.
+  - (* <- *) generalize dependent st. generalize dependent st'.
+    induction c; intros.
+    + (* SKIP *) simpl in H. assumption.
+    + (* ::= *) simpl in H. inversion H; subst. rewrite <- optimize_0plus_aexp_sound. apply E_Ass. reflexivity.
+    + (* ;; *) inversion H; subst. apply IHc1 in H2. apply IHc2 in H5.
+    apply E_Seq with st'0; auto.
+    + (* IFB *) inversion H; subst.
+      * (* true *) apply E_IfTrue.
+        { rewrite optimize_0plus_bexp_sound. assumption. }
+        { apply IHc1 in H6. assumption. }
+      * (* false *) apply E_IfFalse.
+        { rewrite optimize_0plus_bexp_sound. assumption. }
+        { apply IHc2 in H6. assumption. }
+    + (* WHILE *) assert (bequiv b (optimize_0plus_bexp b)). {
+      apply optimize_0plus_bexp_sound. }
+      simpl in *. induction b.
+      * exfalso. apply WHILE_true_nonterm in H; auto.
+      * simpl in *. apply WHILE_false; auto. inversion H; subst.
+        { constructor. }
+        { inversion H3. }
+      * simpl in *. inversion H; subst.
+        { apply E_WhileFalse. simpl in *. rewrite <- optimize_0plus_aexp_sound in H5. rewrite <- optimize_0plus_aexp_sound in H5. assumption. }
+        { apply E_WhileTrue with st'0.
+          admit.
+          admit.
+          - simpl in *. rewrite <- optimize_0plus_aexp_sound in *. rewrite <- optimize_0plus_aexp_sound in *. unfold bequiv in *.  
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+inversion H; subst.
+      * (* false *) apply E_WhileFalse. rewrite optimize_0plus_bexp_sound. assumption.
+      * (* true *) 
+      apply E_WhileTrue with st'0.
+        { rewrite optimize_0plus_bexp_sound. assumption. }
+        { apply IHc. assumption. }
+        { apply IHc in H3. inversion H3; subst.
+          - simpl in *. rewrite <- optimize_0plus_bexp_sound in H2. apply E_WhileTrue with st'0; auto. simpl in H6. 
+            +  
+
+
+
+induction b; simpl in *.
+          - subst. apply WHILE_true_nonterm in H.
+            + exfalso. apply H.
+            + apply refl_bequiv.
+          - inversion H2.
+          - rewrite <- optimize_0plus_aexp_sound in H2. rewrite <- optimize_0plus_aexp_sound in H2. apply IHc in H3. inversion H3; subst.
+            + simpl.
+        inversion H6; subst.
+          - apply E_WhileFalse. rewrite optimize_0plus_bexp_sound. assumption.
+          - 
+          
+Qed.
 
 
 
